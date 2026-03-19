@@ -1415,7 +1415,7 @@ function renderDashboard(){
   }
 }
 
-// tRow with delete button for dashboard
+// tRow with edit + delete for dashboard and history
 function tRowDel(t){
   const isWd=t.type==='withdrawal';
   const icon=isWd?'💸': t.type==='income'?(srcOf(t.source).icon||'💰'): t.type==='savings'?'🏦': catOf(t.cat).icon;
@@ -1424,7 +1424,8 @@ function tRowDel(t){
   const sign=isWd||t.type==='expense'?'-':'+';
   const creator=t.createdBy?`<div class="tby">👤 ${t.createdBy} · ${t.createdAt||''}</div>`:'';
   const delfn=isWd?`delWd(${t.id})`:`delTxn(${t.id})`;
-  return`<div class="ti-row"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}</div><div class="tmeta">${label} · ${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}" style="margin-right:6px;">${sign}${fmt(t.amount)}</div><button style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" onclick="${delfn}" title="Delete">✕</button></div>`;
+  const editBtn=!isWd?`<button onclick="openEditTxn(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button>`:'';
+  return`<div class="ti-row"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}</div><div class="tmeta">${label} · ${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}" style="margin-right:4px;">${sign}${fmt(t.amount)}</div>${editBtn}<button style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" onclick="${delfn}" title="Delete">✕</button></div>`;
 }
 
 function tRow(t){
@@ -1576,7 +1577,7 @@ function renderSavings(){
   document.getElementById('sav-rate').textContent=rate+'%';
   const wl=document.getElementById('w-list');
   const sorted=[...withdrawals].sort((a,b)=>b.id-a.id);
-  wl.innerHTML=sorted.length?sorted.map(w=>`<div class="wd-row"><div class="wd-icon">💸</div><div class="wd-info"><div class="wd-reason">${w.reason}</div><div class="wd-meta">${displayDate(w.date)}${w.notes?' · '+w.notes:''}</div><div class="tby">👤 ${w.createdBy||''} · ${w.createdAt||''}</div></div><div class="wd-amt">-${fmt(w.amount)}</div><button class="wd-del" onclick="delWd(${w.id})">✕</button></div>`).join(''):'<div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div>';
+  wl.innerHTML=sorted.length?sorted.map(w=>`<div class="wd-row"><div class="wd-icon">💸</div><div class="wd-info"><div class="wd-reason">${w.reason}</div><div class="wd-meta">${displayDate(w.date)}${w.notes?' · '+w.notes:''}</div><div class="tby">👤 ${w.createdBy||''} · ${w.createdAt||''}</div></div><div class="wd-amt">-${fmt(w.amount)}</div><button onclick="openEditWd(${w.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button><button class="wd-del" onclick="delWd(${w.id})">✕</button></div>`).join(''):'<div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div>';
 }
 
 // ─── HISTORY ───────────────────────────────────────────────────────────────
@@ -1634,7 +1635,8 @@ function renderHistory(){
     const amtCls=isWd||t.type==='expense'?'expense': t.type==='savings'?'savings':'income';
     const sign=isWd||t.type==='expense'?'-':'+';
     const delfn=isWd?`delWd(${t.id})`:`delTxn(${t.id})`;
-    return`<div class="hrow"><div class="ticon ${t.type==='income'?'income':t.type==='savings'?'savings':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||''}</div><div class="tmeta">${label}${t.notes?' · '+t.notes:''}</div><div class="hcreator">👤 ${t.createdBy||'—'} · ${t.createdAt||''}</div></div><div class="tamt ${amtCls}">${sign}${fmt(t.amount)}</div><button class="hdel" onclick="${delfn}">✕</button></div>`;
+    const editH=!isWd?`<button onclick="openEditTxn(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button>`:'';
+    return`<div class="hrow"><div class="ticon ${t.type==='income'?'income':t.type==='savings'?'savings':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||''}</div><div class="tmeta">${label}${t.notes?' · '+t.notes:''}</div><div class="hcreator">👤 ${t.createdBy||'—'} · ${t.createdAt||''}</div></div><div class="tamt ${amtCls}">${sign}${fmt(t.amount)}</div>${editH}<button class="hdel" onclick="${delfn}">✕</button></div>`;
   }).join('')}`).join('');
 }
 
@@ -1950,6 +1952,67 @@ async function deletePlan(id){
   if(accessToken&&p) await deletePlanFromSheet(p);
 }
 
+function openEditPlan(id){
+  const p=plans.find(x=>x.id===id); if(!p) return;
+  // Re-use the txn edit modal but populate with plan fields
+  document.getElementById('dlg-edit-area').style.display='none';
+  document.getElementById('dlg-txn-edit-area').style.display='flex';
+  const _rr=document.getElementById('et-recur-row');if(_rr)_rr.style.display='none';
+  document.getElementById('et-desc').value=p.desc||'';
+  document.getElementById('et-date').value=p.date||'';
+  document.getElementById('et-amt').value=p.amount||'';
+  document.getElementById('et-notes').value=p.notes||'';
+  document.getElementById('et-curr-sym').textContent=settings.currency;
+  // Show category dropdown, hide source
+  const catSel=document.getElementById('et-cat');
+  const srcSel=document.getElementById('et-src');
+  catSel.style.display=''; srcSel.style.display='none';
+  catSel.innerHTML=cats.map(c=>`<option value="${c.name}">${c.icon} ${c.name}</option>`).join('');
+  catSel.value=p.cat||cats[0].name;
+  // Add recurring field dynamically
+  let recurRow=document.getElementById('et-recur-row');
+  if(!recurRow){
+    recurRow=document.createElement('select');
+    recurRow.id='et-recur-row';
+    recurRow.className='fs';
+    recurRow.innerHTML='<option value="none">One-time only</option><option value="monthly">Every month</option>';
+    document.getElementById('dlg-txn-edit-area').appendChild(recurRow);
+  }
+  recurRow.style.display='';
+  recurRow.value=p.recur||'none';
+  document.getElementById('dlg-title').textContent='Edit Planned Expense';
+  document.getElementById('dlg-body').textContent='';
+  document.getElementById('dlg-confirm-btn').textContent='Save Changes';
+  document.getElementById('dlg-confirm-btn').style.background='var(--green)';
+  pendingAction=()=>saveEditPlan(id);
+  document.getElementById('overlay').classList.add('show');
+}
+
+async function saveEditPlan(id){
+  const p=plans.find(x=>x.id===id); if(!p) return;
+  const newDesc=document.getElementById('et-desc').value.trim();
+  const newDate=document.getElementById('et-date').value;
+  const newAmt=parseFloat(document.getElementById('et-amt').value);
+  const newNotes=document.getElementById('et-notes').value.trim();
+  const newCat=document.getElementById('et-cat').value;
+  const recurRow=document.getElementById('et-recur-row');
+  const newRecur=recurRow?recurRow.value:'none';
+  if(!newDesc) return toast('Description required','er');
+  if(!newDate) return toast('Date required','er');
+  if(!newAmt||newAmt<=0) return toast('Valid amount required','er');
+  p.desc=newDesc; p.date=newDate; p.amount=newAmt;
+  p.notes=newNotes; p.cat=newCat; p.recur=newRecur;
+  savePlans();
+  renderPlanner(); renderQLists(); renderPendingBanner();
+  toast('Plan updated ✅','ok');
+  if(accessToken){
+    setSyncDot('sy');
+    await deletePlanFromSheet(p);
+    await pushPlans([p]);
+    setSyncDot('on');
+  }
+}
+
 function planStatus(p){
   // Returns: 'done' | 'current' | 'overdue' | 'future'
   if(p.done) return 'done';
@@ -2035,6 +2098,7 @@ function renderPlanner(){
             </div>
           </div>
           <div class="pamt">${fmt(p.amount)}</div>
+          <button style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" onclick="openEditPlan(${p.id})" title="Edit">✏️</button>
           <button class="pdel" onclick="deletePlan(${p.id})">✕</button>
         </div>`;
       }).join('')}
@@ -2044,29 +2108,41 @@ function renderPlanner(){
 async function quickLogPlanned(planId){
   const p=plans.find(x=>x.id===planId);
   if(!p) return;
-  // Pre-fill the expense form with this planned expense's details
-  document.getElementById('e-desc').value=p.desc;
-  // Set category dropdown
-  const catSel=document.getElementById('e-cat');
-  if(catSel){
-    for(let i=0;i<catSel.options.length;i++){
-      if(catSel.options[i].value===p.cat){catSel.selectedIndex=i;break;}
-    }
-  }
-  // Set date to current month (log it for now, even if overdue)
-  document.getElementById('e-date').value=toMo();
-  // Set amount
-  document.getElementById('e-amt').value=p.amount;
-  if(p.notes) document.getElementById('e-notes').value=p.notes;
+
+  // Create the actual expense transaction directly — no manual step needed
+  const t={
+    id:Date.now(),
+    type:'expense',
+    desc:p.desc,
+    cat:p.cat,
+    date:p.date,        // Use the plan's own month, not necessarily current month
+    amount:p.amount,
+    notes:p.notes||'',
+    createdBy:userEmail||'Offline',
+    createdAt:nowStr()
+  };
+  txns.unshift(t);
+  saveTxns();
 
   // Mark plan as done
-  p.done=true; savePlans();
-  renderQLists(); renderPendingBanner(); renderPlanner();
-  if(accessToken) await updatePlanInSheet(p);
+  p.done=true;
+  savePlans();
 
-  // Scroll to top of expense form
-  document.getElementById('tp-expenses').scrollTop=0;
-  toast('Form pre-filled — review and tap "+ Add Expense"','ok');
+  // Refresh all relevant views
+  render();
+  renderHistory();
+  renderPlanner();
+  renderPendingBanner();
+  renderQLists();
+
+  toast('Expense logged from planner ✅','ok');
+
+  // Push both to Google Sheets
+  if(accessToken){
+    setSyncDot('sy');
+    await Promise.all([pushTxns([t]), updatePlanInSheet(p)]);
+    setSyncDot('on');
+  }
 }
 
 function renderPendingBanner(){
@@ -2084,6 +2160,49 @@ function renderPendingBanner(){
 }
 
 
+// ─── EDIT WITHDRAWAL ──────────────────────────────────────────────────────────
+function openEditWd(id){
+  const w=withdrawals.find(x=>x.id===id);if(!w)return;
+  document.getElementById('dlg-edit-area').style.display='none';
+  document.getElementById('dlg-txn-edit-area').style.display='flex';
+  // Hide cat/src, use desc for reason
+  document.getElementById('et-cat').style.display='none';
+  document.getElementById('et-src').style.display='none';
+  document.getElementById('et-desc').value=w.reason||'';
+  document.getElementById('et-date').value=w.date||'';
+  document.getElementById('et-amt').value=w.amount||'';
+  document.getElementById('et-notes').value=w.notes||'';
+  document.getElementById('et-curr-sym').textContent=settings.currency;
+  document.getElementById('dlg-title').textContent='Edit Withdrawal';
+  document.getElementById('dlg-body').textContent='';
+  document.getElementById('dlg-confirm-btn').textContent='Save Changes';
+  document.getElementById('dlg-confirm-btn').style.background='var(--green)';
+  pendingAction=()=>saveEditWd(id);
+  document.getElementById('overlay').classList.add('show');
+}
+
+async function saveEditWd(id){
+  const w=withdrawals.find(x=>x.id===id);if(!w)return;
+  const newReason=document.getElementById('et-desc').value.trim();
+  const newDate=document.getElementById('et-date').value;
+  const newAmt=parseFloat(document.getElementById('et-amt').value);
+  const newNotes=document.getElementById('et-notes').value.trim();
+  if(!newReason)return toast('Reason required','er');
+  if(!newDate)return toast('Date required','er');
+  if(!newAmt||newAmt<=0)return toast('Valid amount required','er');
+  w.reason=newReason; w.date=newDate; w.amount=newAmt; w.notes=newNotes;
+  saveWds();
+  renderSavings(); renderHistory();
+  toast('Withdrawal updated ✅','ok');
+  if(accessToken){
+    setSyncDot('sy');
+    await deleteWdFromSheet(w);
+    await pushWithdrawals([w]);
+    setSyncDot('on');
+  }
+}
+
+
 // ─── EDIT TRANSACTION ────────────────────────────────────────────────────────
 function openEditTxn(id){
   const t=txns.find(x=>x.id===id);if(!t)return;
@@ -2096,6 +2215,9 @@ function openEditTxn(id){
   document.getElementById('et-amt').value=t.amount||'';
   document.getElementById('et-notes').value=t.notes||'';
   document.getElementById('et-curr-sym').textContent=settings.currency;
+  // Reset visibility first
+  document.getElementById('et-cat').style.display='';
+  document.getElementById('et-src').style.display='';
   // Show category or source dropdown depending on type
   const catSel=document.getElementById('et-cat');
   const srcSel=document.getElementById('et-src');
