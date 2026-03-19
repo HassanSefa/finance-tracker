@@ -281,6 +281,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .pexp-check-btn{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;transition:all .15s;}
 .pexp-check-btn.done{background:var(--green);border-color:var(--green);color:#fff;}
 
+
+/* DASHBOARD FILTER & REPORT */
+.dash-filter{display:flex;align-items:center;gap:8px;margin-bottom:16px;background:var(--surface);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh);}
+.dash-filter label{font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;}
+.dash-filter .fs{flex:1;padding:8px 12px;font-size:13px;}
+.dash-filter-reset{padding:7px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--rs);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;white-space:nowrap;}
+.dash-filter-reset:hover{border-color:var(--accent);color:var(--accent);}
+.dash-period{font-size:11px;font-weight:600;color:var(--text3);text-align:center;margin:-8px 0 12px;letter-spacing:.5px;text-transform:uppercase;}
+.plan-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.plan-stat-card{background:var(--surface);border-radius:var(--r);padding:14px;box-shadow:var(--sh);}
+.plan-stat-card .cl{margin-bottom:6px;}
+.plan-stat-card .cv{font-size:17px;}
+.plan-vs{display:flex;align-items:center;gap:6px;margin-top:5px;}
+.plan-vs-bar{flex:1;height:5px;border-radius:99px;background:var(--surface2);overflow:hidden;}
+.plan-vs-fill{height:100%;border-radius:99px;background:var(--green);transition:width .5s ease;}
+.plan-vs-pct{font-size:11px;font-weight:600;color:var(--text3);}
+.dash-txn-sec{background:var(--surface);border-radius:var(--r);padding:16px;box-shadow:var(--sh);margin-bottom:16px;}
+.dash-txn-list .ti-row{padding:9px 0;}
+.dash-txn-empty{text-align:center;padding:24px;color:var(--text3);font-size:13px;}
+
 </style>
 </head>
 <body>
@@ -327,26 +347,64 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <!-- DASHBOARD -->
     <div id="tp-dashboard" class="tp active">
       <div id="banner" class="banner"></div>
+
+      <!-- Month filter -->
+      <div class="dash-filter">
+        <label>📅 Month</label>
+        <select class="fs" id="d-mo-filter" onchange="renderDashboard()">
+          <option value="current">Current Month</option>
+        </select>
+        <button class="dash-filter-reset" onclick="resetDashFilter()">All time</button>
+      </div>
+      <div class="dash-period" id="d-period-label"></div>
+
+      <!-- Summary cards -->
       <div class="cg">
         <div class="card"><div class="ci">💚</div><div class="cl">Total Income</div><div class="cv g" id="d-inc">K 0.00</div></div>
         <div class="card"><div class="ci">🔴</div><div class="cl">Total Expenses</div><div class="cv r" id="d-exp">K 0.00</div></div>
         <div class="card"><div class="ci">⚖️</div><div class="cl">Net Balance</div><div class="cv" id="d-bal">K 0.00</div></div>
-        <div class="card"><div class="ci">🏦</div><div class="cl">Total Savings</div><div class="cv teal" id="d-sav">K 0.00</div></div>
+        <div class="card"><div class="ci">🏦</div><div class="cl">Savings</div><div class="cv teal" id="d-sav">K 0.00</div></div>
       </div>
+
+      <!-- Budget bar -->
       <div class="bsec">
-        <div class="bh"><div class="st">Monthly Budget Usage</div><div class="bpct" id="d-pct">0%</div></div>
+        <div class="bh"><div class="st">Budget Usage</div><div class="bpct" id="d-pct">0%</div></div>
         <div class="pt"><div class="pf" id="d-bar" style="width:0%"></div></div>
         <div class="bm"><span id="d-spent">Spent: K 0.00</span><span id="d-ref">Income: K 0.00</span></div>
       </div>
+
+      <!-- Planner stats -->
+      <div class="plan-stats">
+        <div class="plan-stat-card">
+          <div class="cl">Planned vs Done</div>
+          <div class="cv teal" id="d-plan-done">0 / 0</div>
+          <div class="plan-vs">
+            <div class="plan-vs-bar"><div class="plan-vs-fill" id="d-plan-bar" style="width:0%"></div></div>
+            <div class="plan-vs-pct" id="d-plan-pct">0%</div>
+          </div>
+        </div>
+        <div class="plan-stat-card">
+          <div class="cl">Carried Forward</div>
+          <div class="cv r" id="d-plan-carry">0 items</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:5px;" id="d-plan-carry-amt">K 0.00 overdue</div>
+        </div>
+      </div>
+
+      <!-- Expenses by category -->
       <div class="cat-sec">
         <div class="rh"><div class="st">Expenses by Category</div></div>
         <div id="d-cats"><div class="empty" style="padding:20px 0"><div class="eico">📂</div><p>No expenses yet</p></div></div>
       </div>
-      <div class="rec-sec">
-        <div class="rh"><div class="st">Recent Transactions</div>
-          <button class="va" onclick="sw('history',document.querySelectorAll('.tb')[4])">View all →</button>
+
+      <!-- All transactions for selected period -->
+      <div class="dash-txn-sec">
+        <div class="rh">
+          <div class="st" id="d-txn-title">All Transactions</div>
+          <span id="d-txn-count" style="font-size:11px;color:var(--text3);"></span>
         </div>
-        <div id="d-recent"><div class="empty" style="padding:16px 0"><div class="eico">💸</div><p>No transactions yet</p></div></div>
+        <div class="dash-txn-list" id="d-txn-list">
+          <div class="dash-txn-empty">No transactions yet</div>
+        </div>
       </div>
     </div>
 
@@ -741,7 +799,7 @@ function initApp(){
   document.getElementById('e-date').value=toMo();
   document.getElementById('w-date').value=toMo();
   document.getElementById('pl-date').value=toMo();
-  rebuildDropdowns(); applySettings(); render(); renderPlanner(); renderPendingBanner();
+  rebuildDropdowns(); applySettings(); render(); renderPlanner(); renderPendingBanner(); populateDashFilter();
   setSyncDot(accessToken?'on':'off');
 }
 
@@ -910,7 +968,7 @@ async function loadFromSheets(){
     const now=new Date().toLocaleTimeString();
     localStorage.setItem('hft_last_sync',now);
     const ls=document.getElementById('a-lastsync');if(ls)ls.textContent=now;
-    rebuildDropdowns(); render(); renderHistory(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter();
+    rebuildDropdowns(); render(); renderHistory(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter(); populateDashFilter();
     showBanner('Synced with Google Sheets ☁️');
   }catch(e){
     setSyncDot('er');
@@ -1027,7 +1085,7 @@ function sw(id,btn){
   document.getElementById('tp-'+id).classList.add('active');
   btn.classList.add('active');
   if(id==='history'){populateMoFilter();populateUserFilter();renderHistory();}
-  if(id==='dashboard') renderDashboard();
+  if(id==='dashboard'){dashFilterMode='month';renderDashboard();}
   if(id==='income')    renderQLists();
   if(id==='expenses')  {renderQLists();renderPendingBanner();}
   if(id==='savings')   renderSavings();
@@ -1139,17 +1197,73 @@ function applySettings(){
   if(ls)ls.textContent=localStorage.getItem('hft_last_sync')||'Never';
 }
 
+// ─── DASHBOARD FILTER STATE ────────────────────────────────────────────────
+let dashFilterMode = 'month'; // 'month' | 'all'
+let dashFilterMonth = null;   // 'YYYY-MM' or null (= current month)
+
+function populateDashFilter(){
+  const sel = document.getElementById('d-mo-filter');
+  if(!sel) return;
+  const saved = sel.value;
+  // Collect all months from txns, withdrawals, plans
+  const mos = new Set();
+  txns.forEach(t=>{if(t.date)mos.add(t.date.substring(0,7));});
+  withdrawals.forEach(w=>{if(w.date)mos.add(w.date.substring(0,7));});
+  // Build options: current month first, then all months
+  const sorted = [...mos].sort().reverse();
+  sel.innerHTML = '<option value="current">Current Month</option>' +
+    sorted.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${MOF[parseInt(mo)-1]} ${y}</option>`;}).join('');
+  // Restore selection
+  if(saved && saved !== 'current'){
+    for(let i=0;i<sel.options.length;i++){
+      if(sel.options[i].value===saved){sel.selectedIndex=i;break;}
+    }
+  }
+}
+
+function resetDashFilter(){
+  dashFilterMode='all';
+  const sel=document.getElementById('d-mo-filter');
+  if(sel) sel.value='current'; // visual reset
+  renderDashboard();
+}
+
+function getDashTxns(){
+  const sel = document.getElementById('d-mo-filter');
+  const val = sel ? sel.value : 'current';
+  if(dashFilterMode==='all') return {txns:[...txns], wds:[...withdrawals], label:'All Time', month:null};
+  dashFilterMode='month';
+  if(val==='current'){
+    const label=MOF[curMonth]+' '+curYear;
+    return {txns:moTxns(curYear,curMonth), wds:withdrawals.filter(w=>(w.date||'').startsWith(moStr())), label, month:moStr()};
+  }
+  const [fy,fm]=val.split('-').map(Number);
+  const label=MOF[fm-1]+' '+fy;
+  const ft=txns.filter(t=>(t.date||'').startsWith(val));
+  const fw=withdrawals.filter(w=>(w.date||'').startsWith(val));
+  return {txns:ft, wds:fw, label, month:val};
+}
+
 function renderDashboard(){
-  const t=moTxns(curYear,curMonth);
+  populateDashFilter();
+  const {txns:t, wds, label, month} = getDashTxns();
+
+  // Period label
+  const pl=document.getElementById('d-period-label');
+  if(pl) pl.textContent=dashFilterMode==='all'?'Showing all-time data':'Showing data for '+label;
+
   const inc=t.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
   const exp=t.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
-  const totalSav=txns.filter(x=>x.type==='savings').reduce((s,x)=>s+x.amount,0);
-  const totalWd=withdrawals.reduce((s,w)=>s+w.amount,0);
+  const sav=t.filter(x=>x.type==='savings').reduce((s,x)=>s+x.amount,0);
+  const wdAmt=wds.reduce((s,w)=>s+w.amount,0);
   const bal=inc-exp;
+
   document.getElementById('d-inc').textContent=fmt(inc);
   document.getElementById('d-exp').textContent=fmt(exp);
   const be=document.getElementById('d-bal');be.textContent=fmt(bal);be.className='cv '+(bal>=0?'g':'r');
-  document.getElementById('d-sav').textContent=fmt(Math.max(0,totalSav-totalWd));
+  document.getElementById('d-sav').textContent=fmt(sav);
+
+  // Budget bar
   const bb=settings.budgetTarget?parseFloat(settings.budgetTarget):inc;
   const pct=bb>0?Math.min((exp/bb)*100,100):0;
   document.getElementById('d-pct').textContent=Math.round(pct)+'%';
@@ -1157,17 +1271,67 @@ function renderDashboard(){
   bar.style.width=pct+'%';bar.className='pf'+(pct>90?' danger':pct>70?' warn':'');
   document.getElementById('d-spent').textContent='Spent: '+fmt(exp);
   document.getElementById('d-ref').textContent=(settings.budgetTarget?'Budget: ':'Income: ')+fmt(bb);
-  // Cat bars
+
+  // Planner stats for selected month
+  const moPlans=month ? plans.filter(p=>p.date===month) : plans;
+  const donePlans=moPlans.filter(p=>p.done).length;
+  const totalPlans=moPlans.length;
+  // Carried forward = overdue (date < current month, not done)
+  const now=toMo();
+  const carried=plans.filter(p=>p.date<now&&!p.done);
+  const carriedAmt=carried.reduce((s,p)=>s+p.amount,0);
+  const planPct=totalPlans>0?Math.round((donePlans/totalPlans)*100):0;
+  document.getElementById('d-plan-done').textContent=donePlans+' / '+totalPlans;
+  document.getElementById('d-plan-bar').style.width=planPct+'%';
+  document.getElementById('d-plan-pct').textContent=planPct+'%';
+  document.getElementById('d-plan-carry').textContent=carried.length+' item'+(carried.length===1?'':'s');
+  document.getElementById('d-plan-carry-amt').textContent=fmt(carriedAmt)+' overdue';
+
+  // Category bars
   const cT={};t.filter(x=>x.type==='expense').forEach(x=>{cT[x.cat]=(cT[x.cat]||0)+x.amount;});
   const cL=Object.entries(cT).sort((a,b)=>b[1]-a[1]);const mx=cL[0]?cL[0][1]:1;
   const ce=document.getElementById('d-cats');
-  ce.innerHTML=cL.length?cL.map(([cn,am])=>{const c=catOf(cn);return`<div class="cat-row"><div class="cdot" style="background:${c.color}"></div><div class="cname">${c.icon} ${cn}</div><div class="cbw"><div class="cb" style="width:${(am/mx)*100}%;background:${c.color}"></div></div><div class="camt">${fmt(am)}</div></div>`;}).join(''):'<div class="empty" style="padding:20px 0"><div class="eico">📂</div><p>No expenses yet</p></div>';
-  // Recent
-  const allRecent=[
-    ...txns.map(t=>({...t,_type:'txn'})),
-    ...withdrawals.map(w=>({...w,type:'withdrawal',desc:w.reason,_type:'wd'}))
-  ].sort((a,b)=>b.id-a.id).slice(0,6);
-  document.getElementById('d-recent').innerHTML=allRecent.length?allRecent.map(tRow).join(''):'<div class="empty" style="padding:16px 0"><div class="eico">💸</div><p>No transactions yet</p></div>';
+  ce.innerHTML=cL.length?cL.map(([cn,am])=>{const c=catOf(cn);return`<div class="cat-row"><div class="cdot" style="background:${c.color}"></div><div class="cname">${c.icon} ${cn}</div><div class="cbw"><div class="cb" style="width:${(am/mx)*100}%;background:${c.color}"></div></div><div class="camt">${fmt(am)}</div></div>`;}).join(''):'<div class="empty" style="padding:20px 0"><div class="eico">📂</div><p>No expenses for this period</p></div>';
+
+  // All transactions for selected period — group by type
+  const allForPeriod=[
+    ...t.map(x=>({...x,_t:'txn'})),
+    ...wds.map(w=>({...w,type:'withdrawal',desc:w.reason,_t:'wd'}))
+  ].sort((a,b)=>b.id-a.id);
+
+  const ttlEl=document.getElementById('d-txn-title');
+  const cntEl=document.getElementById('d-txn-count');
+  if(ttlEl) ttlEl.textContent=dashFilterMode==='all'?'All Transactions':'Transactions — '+label;
+  if(cntEl) cntEl.textContent=allForPeriod.length+' record'+(allForPeriod.length===1?'':'s');
+
+  const listEl=document.getElementById('d-txn-list');
+  if(!allForPeriod.length){
+    listEl.innerHTML='<div class="dash-txn-empty">No transactions for this period</div>';
+  } else {
+    // Group by month if all-time view
+    if(dashFilterMode==='all'){
+      const grp={};
+      allForPeriod.forEach(x=>{const k=displayDate(x.date)||'Unknown';if(!grp[k])grp[k]=[];grp[k].push(x);});
+      listEl.innerHTML=Object.entries(grp).map(([mo,rows])=>
+        `<div style="padding:6px 0 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);border-top:1px solid var(--border);margin-top:6px;">${mo}</div>`+
+        rows.map(x=>tRowDel(x)).join('')
+      ).join('');
+    } else {
+      listEl.innerHTML=allForPeriod.map(x=>tRowDel(x)).join('');
+    }
+  }
+}
+
+// tRow with delete button for dashboard
+function tRowDel(t){
+  const isWd=t.type==='withdrawal';
+  const icon=isWd?'💸': t.type==='income'?(srcOf(t.source).icon||'💰'): t.type==='savings'?'🏦': catOf(t.cat).icon;
+  const label=isWd?'Withdrawal': t.type==='income'?t.source: t.type==='savings'?'Savings': t.cat;
+  const amtClass=isWd||t.type==='expense'?'expense': t.type==='savings'?'savings':'income';
+  const sign=isWd||t.type==='expense'?'-':'+';
+  const creator=t.createdBy?`<div class="tby">👤 ${t.createdBy} · ${t.createdAt||''}</div>`:'';
+  const delfn=isWd?`delWd(${t.id})`:`delTxn(${t.id})`;
+  return`<div class="ti-row"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}</div><div class="tmeta">${label} · ${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}" style="margin-right:6px;">${sign}${fmt(t.amount)}</div><button style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" onclick="${delfn}" title="Delete">✕</button></div>`;
 }
 
 function tRow(t){
