@@ -320,6 +320,29 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .recur-card-value{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--red);}
 .recur-card-sub{font-size:11px;color:var(--text3);margin-top:3px;}
 
+
+/* SAVINGS TAB ENHANCEMENTS */
+.sav-mo-filter{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+.sav-mo-filter .fs{flex:1;}
+.sav-history-table{background:var(--surface);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:16px;}
+.sav-table-hdr{display:grid;grid-template-columns:1fr 100px 100px;gap:0;padding:9px 14px;background:var(--surface2);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);}
+.sav-table-row{display:grid;grid-template-columns:1fr 100px 100px;gap:0;padding:11px 14px;border-top:1px solid var(--border);align-items:center;}
+.sav-table-row:hover{background:var(--surface2);}
+.sav-table-desc{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sav-table-meta{font-size:11px;color:var(--text3);margin-top:2px;}
+.sav-table-amt{font-size:13px;font-weight:700;text-align:right;}
+.sav-table-amt.planned{color:var(--text3);}
+.sav-table-amt.logged{color:var(--teal);}
+.sav-table-amt.empty{color:var(--border);font-weight:400;}
+.sav-table-footer{display:grid;grid-template-columns:1fr 100px 100px;gap:0;padding:10px 14px;background:var(--surface2);border-top:2px solid var(--border);}
+.sav-table-footer span{font-size:13px;font-weight:700;}
+.sav-table-footer .lbl{color:var(--text2);}
+.sav-table-footer .planned-total{color:var(--text3);text-align:right;}
+.sav-table-footer .logged-total{color:var(--teal);text-align:right;}
+.sav-log-btn{padding:5px 11px;background:var(--teal);color:#fff;border:none;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.sav-log-btn:hover{opacity:.85;}
+.sav-log-btn.done-btn{background:var(--gl);color:var(--green);}
+
 </style>
 </head>
 <body>
@@ -522,25 +545,76 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- SAVINGS -->
     <div id="tp-savings" class="tp">
+      <!-- Month filter -->
+      <div class="sav-mo-filter">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;">📅 Month</label>
+        <select class="fs" id="sav-mo-filter" onchange="renderSavings()">
+          <option value="current">Current Month</option>
+        </select>
+      </div>
+
       <!-- Hero card -->
-      <div class="cg" style="grid-template-columns:1fr 1fr 1fr;">
+      <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,var(--teal),#0d9488);color:#fff;">
-          <div class="cl" style="color:rgba(255,255,255,.75);">Total Savings Balance</div>
+          <div class="cl" style="color:rgba(255,255,255,.75);">Total Savings Balance (All Time)</div>
           <div style="font-family:'Playfair Display',serif;font-size:30px;font-weight:700;line-height:1;" id="sav-balance">K 0.00</div>
-          <div style="font-size:12px;opacity:.75;margin-top:6px;" id="sav-sub">From savings category minus withdrawals</div>
+          <div style="font-size:12px;opacity:.75;margin-top:6px;" id="sav-sub">Logged savings minus withdrawals</div>
         </div>
-        <div class="card"><div class="ci">➕</div><div class="cl">Saved This Month</div><div class="cv teal" id="sav-month">K 0.00</div></div>
+        <div class="card"><div class="ci">📅</div><div class="cl">Planned This Period</div><div class="cv teal" id="sav-planned">K 0.00</div></div>
+        <div class="card"><div class="ci">✅</div><div class="cl">Logged This Period</div><div class="cv teal" id="sav-month">K 0.00</div></div>
         <div class="card"><div class="ci">➖</div><div class="cl">Withdrawn</div><div class="cv r" id="sav-withdrawn">K 0.00</div></div>
         <div class="card"><div class="ci">📊</div><div class="cl">Savings Rate</div><div class="cv gold" id="sav-rate">0%</div></div>
       </div>
 
-      <!-- Withdrawal history (top) -->
+      <!-- Savings transaction history table -->
+      <div class="sav-history-table">
+        <div class="rh" style="padding:12px 14px 8px;">
+          <div class="st" style="font-size:14px;">🏦 Savings History</div>
+          <span id="sav-period-label" style="font-size:11px;color:var(--text3);"></span>
+        </div>
+        <div class="sav-table-hdr">
+          <span>Description</span>
+          <span style="text-align:right;">Planned</span>
+          <span style="text-align:right;">Logged</span>
+        </div>
+        <div id="sav-history-rows"><div class="empty" style="padding:24px"><p>No savings records</p></div></div>
+        <div class="sav-table-footer" id="sav-table-footer" style="display:none;">
+          <span class="lbl">Total</span>
+          <span class="planned-total" id="sav-footer-planned">K 0.00</span>
+          <span class="logged-total" id="sav-footer-logged">K 0.00</span>
+        </div>
+      </div>
+
+      <!-- From Savings Planner section -->
+      <div id="planned-in-sav" class="plan-in-exp" style="display:none;margin-bottom:16px;">
+        <div class="plan-in-exp-hdr">
+          <div class="st">📅 Planned Savings</div>
+          <span id="planned-in-sav-count" style="font-size:11px;color:var(--text3);"></span>
+        </div>
+        <div id="planned-in-sav-list"></div>
+      </div>
+
+      <!-- Withdrawal history -->
       <div class="withdraw-sec">
         <div class="rh"><div class="st">Withdrawal History</div></div>
         <div class="withdraw-list" id="w-list"><div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div></div>
       </div>
 
-      <!-- Log withdrawal (bottom) -->
+      <!-- Log savings (new) -->
+      <div class="fc">
+        <div class="ftitle">🏦 Log Savings</div>
+        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="sv-desc" placeholder="e.g. Monthly savings deposit..."></div>
+        <div class="frow">
+          <div class="fg"><label class="fl">Amount (<span class="csym">K</span>)</label>
+            <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="sv-amt" placeholder="0.00" min="0" step="0.01"></div>
+          </div>
+          <div class="fg"><label class="fl">Month & Year</label><input type="month" class="fi" id="sv-date"></div>
+        </div>
+        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="sv-notes" placeholder="Any notes..."></div>
+        <button class="btn" style="background:var(--teal)" onclick="logSavings()">+ Log Savings</button>
+      </div>
+
+      <!-- Log withdrawal -->
       <div class="fc">
         <div class="ftitle">💸 Log Withdrawal</div>
         <div class="fg"><label class="fl">Reason for Withdrawal</label><input type="text" class="fi" id="w-reason" placeholder="e.g. Emergency car repair..."></div>
@@ -579,12 +653,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Planned list -->
       <div id="pl-list"><div class="empty"><div class="eico">📅</div><p>No planned expenses yet</p></div></div>
 
-      <!-- Add planned expense form (bottom) -->
+      <!-- Add planned item form (bottom) -->
       <div class="fc" style="margin-top:16px;">
-        <div class="ftitle">📅 Add Planned Expense</div>
-        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="pl-desc" placeholder="e.g. School fees, Rent..."></div>
+        <div class="ftitle">📅 Add to Planner</div>
+        <div class="fg"><label class="fl">Type</label>
+          <select class="fs" id="pl-type" onchange="togglePlanTypeUI()">
+            <option value="expense">Expense</option>
+            <option value="savings">Savings</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="pl-desc" placeholder="e.g. School fees, Monthly savings..."></div>
         <div class="frow">
-          <div class="fg"><label class="fl">Category</label><select class="fs" id="pl-cat"></select></div>
+          <div class="fg" id="pl-cat-group"><label class="fl">Category</label><select class="fs" id="pl-cat"></select></div>
           <div class="fg"><label class="fl">Month Due</label><input type="month" class="fi" id="pl-date"></div>
         </div>
         <div class="fg"><label class="fl">Expected Amount (<span class="csym">K</span>)</label>
@@ -868,7 +948,8 @@ function initApp(){
   document.getElementById('e-date').value=toMo();
   document.getElementById('w-date').value=toMo();
   document.getElementById('pl-date').value=toMo();
-  rebuildDropdowns(); applySettings(); render(); renderPlanner(); renderPendingBanner(); populateDashFilter();
+  const svd=document.getElementById('sv-date');if(svd)svd.value=toMo();
+  rebuildDropdowns(); applySettings(); render(); renderPlanner(); renderPendingBanner(); populateDashFilter(); populateSavMoFilter();
   setSyncDot(accessToken?'on':'off');
 }
 
@@ -969,7 +1050,7 @@ async function ensureTabs(){
     {name:TAB_EXP,headers:['ID','Date','Description','Category','Amount','Notes','CreatedBy','CreatedAt']},
     {name:TAB_SAV,headers:['ID','Date','Description','Amount','Notes','CreatedBy','CreatedAt']},
     {name:TAB_WD, headers:['ID','Date','Reason','Amount','Notes','CreatedBy','CreatedAt']},
-    {name:TAB_PLN, headers:['ID','Date','Description','Category','Amount','Recur','Notes','Done','CreatedBy','CreatedAt']},
+    {name:TAB_PLN, headers:['ID','Date','Description','Category','Amount','Recur','Notes','Done','CreatedBy','CreatedAt','PlanType']},
     {name:TAB_CFG,headers:['Key','Value']},
   ];
   for(const td of tabDefs){
@@ -1041,7 +1122,7 @@ async function loadFromSheets(){
       const doneVal=r[7]||'false';
       const isDone=doneVal.startsWith('true');
       const linkedTxnId=isDone&&doneVal.includes(':')?Number(doneVal.split(':')[1]):null;
-      pLoaded.push({id:Number(r[0]),date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,recur:r[5]||'none',notes:r[6]||'',done:isDone,linkedTxnId,createdBy:r[8]||'',createdAt:r[9]||''});
+      pLoaded.push({id:Number(r[0]),date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,recur:r[5]||'none',notes:r[6]||'',done:isDone,linkedTxnId,createdBy:r[8]||'',createdAt:r[9]||'',planType:r[10]||'expense'});
     });
 
     // ── Merge sheet data with any local-only entries ─────────────────────────
@@ -1066,7 +1147,7 @@ async function loadFromSheets(){
     const now=new Date().toLocaleTimeString();
     localStorage.setItem('hft_last_sync',now);
     const ls=document.getElementById('a-lastsync');if(ls)ls.textContent=now;
-    rebuildDropdowns(); render(); renderHistory(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter(); populateDashFilter();
+    rebuildDropdowns(); render(); renderHistory(); populateSavMoFilter(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter(); populateDashFilter(); populateSavMoFilter();
     showBanner('Synced with Google Sheets ☁️');
   }catch(e){
     setSyncDot('er');
@@ -1092,7 +1173,7 @@ async function pushPlans(list){
   // Store done status as 'true:linkedTxnId' so we can recover the link on sync
   const rows=list.map(p=>[p.id,p.date,p.desc,p.cat,p.amount,p.recur,p.notes||'',
     p.done?(p.linkedTxnId?'true:'+p.linkedTxnId:'true'):'false',
-    p.createdBy||'',p.createdAt||'']);
+    p.createdBy||'',p.createdAt||'',p.planType||'expense']);
   try{await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:J:append?valueInputOption=RAW','POST',{values:rows});}
   catch(e){console.warn('Push plans:',e);}
 }
@@ -1106,7 +1187,7 @@ async function updatePlanInSheet(plan){
     const doneStr=plan.done?(plan.linkedTxnId?'true:'+plan.linkedTxnId:'true'):'false';
     if(idx>=0){
       await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A'+(idx+1)+':J'+(idx+1)+'?valueInputOption=RAW','PUT',
-        {values:[[plan.id,plan.date,plan.desc,plan.cat,plan.amount,plan.recur,plan.notes||'',doneStr,plan.createdBy||'',plan.createdAt||'']]});
+        {values:[[plan.id,plan.date,plan.desc,plan.cat,plan.amount,plan.recur,plan.notes||'',doneStr,plan.createdBy||'',plan.createdAt||'',plan.planType||'expense']]});
     }
   }catch(e){console.warn('Update plan sheet:',e);}
 }
@@ -1190,7 +1271,7 @@ function sw(id,btn){
   if(id==='dashboard'){dashFilterMode='month';renderDashboard();}
   if(id==='income')    renderQLists();
   if(id==='expenses')  {renderQLists();renderPendingBanner();}
-  if(id==='savings')   renderSavings();
+  if(id==='savings')   {populateSavMoFilter();renderSavings();}
   if(id==='planner')   renderPlanner();
   if(id==='admin')     renderAdmin();
 }
@@ -1244,6 +1325,41 @@ async function logExpense(){
   toast('Expense recorded! 🧾','ok');
   renderQLists();renderDashboard();renderSavings();
   if(accessToken){setSyncDot('sy');await pushTxns([t]);setSyncDot('on');}
+}
+
+async function logSavings(){
+  const desc=document.getElementById('sv-desc').value.trim();
+  const amt =parseFloat(document.getElementById('sv-amt').value);
+  const date=document.getElementById('sv-date').value;
+  const notes=document.getElementById('sv-notes').value.trim();
+  if(!desc) return toast('Please add a description','er');
+  if(!date) return toast('Please select a month','er');
+  if(!amt||amt<=0) return toast('Please enter a valid amount','er');
+  const t={id:Date.now(),type:'savings',desc,date,amount:amt,notes,createdBy:userEmail||'Offline',createdAt:nowStr()};
+  txns.unshift(t); saveTxns();
+  ['sv-desc','sv-amt','sv-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sv-date').value=toMo();
+  toast('Savings logged! 🏦','ok');
+  renderSavings(); renderDashboard();
+  if(accessToken){setSyncDot('sy');await pushTxns([t]);setSyncDot('on');}
+}
+
+async function quickLogSavingsPlan(planId){
+  const p=plans.find(x=>x.id===planId);if(!p) return;
+  p.linkedTxnId=Date.now();
+  const t={id:p.linkedTxnId,type:'savings',desc:p.desc,date:p.date,amount:p.amount,notes:p.notes||'',createdBy:userEmail||'Offline',createdAt:nowStr(),fromPlanner:true};
+  txns.unshift(t);
+  p.done=true;
+  saveTxns(); savePlans();
+  renderSavings(); renderDashboard(); renderPlanner(); renderQLists();
+  toast('Savings logged from planner ✅','ok');
+  if(accessToken){setSyncDot('sy');await Promise.all([pushTxns([t]),updatePlanInSheet(p)]);setSyncDot('on');}
+}
+
+function togglePlanTypeUI(){
+  const type=document.getElementById('pl-type').value;
+  const catGroup=document.getElementById('pl-cat-group');
+  if(catGroup) catGroup.style.display=type==='savings'?'none':'';
 }
 
 async function logWithdrawal(){
@@ -1500,7 +1616,7 @@ function renderQLists(){
   // Total = logged expenses + all planned expenses for this month
   const nowMo=toMo();
   const expLogged=expAll.reduce((s,x)=>s+x.amount,0);
-  const plannedThisMo=plans.filter(p=>p.date===nowMo);
+  const plannedThisMo=plans.filter(p=>p.date===nowMo&&(p.planType||'expense')==='expense');
   const plannedAmt=plannedThisMo.reduce((s,p)=>s+p.amount,0);
   const expTotal=expLogged+plannedAmt;
   const eht=document.getElementById('exp-hero-total');
@@ -1525,6 +1641,7 @@ function renderQLists(){
   // Current month planned (not done) + overdue from previous months (not done)
   const plannedToShow=plans.filter(p=>{
     if(p.done) return false;
+    if((p.planType||'expense')==='savings') return false; // savings plans go to savings tab
     return p.date===now || p.date<now; // current or overdue
   }).sort((a,b)=>{
     // Overdue first, then current
@@ -1572,22 +1689,155 @@ function renderQLists(){
   }).join('');
 }
 
-function renderSavings(){
-  const totalSav=txns.filter(x=>x.type==='savings').reduce((s,x)=>s+x.amount,0);
-  const totalWd=withdrawals.reduce((s,w)=>s+w.amount,0);
-  const balance=Math.max(0,totalSav-totalWd);
-  const moSav=txns.filter(x=>x.type==='savings'&&x.date.startsWith(moStr())).reduce((s,x)=>s+x.amount,0);
-  const moInc=moTxns(curYear,curMonth).filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
-  const rate=moInc>0?Math.round((moSav/moInc)*100):0;
-  document.getElementById('sav-balance').textContent=fmt(balance);
-  document.getElementById('sav-sub').textContent='Total saved '+fmt(totalSav)+' · Withdrawn '+fmt(totalWd);
-  document.getElementById('sav-month').textContent=fmt(moSav);
-  document.getElementById('sav-withdrawn').textContent=fmt(totalWd);
-  document.getElementById('sav-rate').textContent=rate+'%';
-  const wl=document.getElementById('w-list');
-  const sorted=[...withdrawals].sort((a,b)=>b.id-a.id);
-  wl.innerHTML=sorted.length?sorted.map(w=>`<div class="wd-row"><div class="wd-icon">💸</div><div class="wd-info"><div class="wd-reason">${w.reason}</div><div class="wd-meta">${displayDate(w.date)}${w.notes?' · '+w.notes:''}</div><div class="tby">👤 ${w.createdBy||''} · ${w.createdAt||''}</div></div><div class="wd-amt">-${fmt(w.amount)}</div><button onclick="openEditWd(${w.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button><button class="wd-del" onclick="delWd(${w.id})">✕</button></div>`).join(''):'<div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div>';
+function populateSavMoFilter(){
+  const sel=document.getElementById('sav-mo-filter');if(!sel)return;
+  const saved=sel.value;
+  const mos=new Set();
+  txns.filter(x=>x.type==='savings').forEach(t=>{if(t.date)mos.add(t.date.substring(0,7));});
+  plans.filter(p=>p.planType==='savings').forEach(p=>{if(p.date)mos.add(p.date.substring(0,7));});
+  sel.innerHTML='<option value="current">Current Month</option>'+[...mos].sort().reverse().map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${MOF[parseInt(mo)-1]} ${y}</option>`;}).join('');
+  if(saved&&saved!=='current')sel.value=saved;
 }
+
+function renderSavings(){
+  populateSavMoFilter();
+  const sel=document.getElementById('sav-mo-filter');
+  const moVal=sel?sel.value:'current';
+  const filterMo=moVal==='current'?moStr():moVal;
+  const isAllTime=false; // always filter by selected month for this view
+
+  // ── All-time totals for hero balance ──
+  const totalSavLogged=txns.filter(x=>x.type==='savings').reduce((s,x)=>s+x.amount,0);
+  const totalWd=withdrawals.reduce((s,w)=>s+w.amount,0);
+  const balance=Math.max(0,totalSavLogged-totalWd);
+
+  // ── Period totals ──
+  const periodSavTxns=txns.filter(x=>x.type==='savings'&&(x.date||'').startsWith(filterMo));
+  const periodLogged=periodSavTxns.reduce((s,x)=>s+x.amount,0);
+  const periodPlanned=plans.filter(p=>p.planType==='savings'&&p.date===filterMo).reduce((s,p)=>s+p.amount,0);
+  const periodWd=withdrawals.filter(w=>(w.date||'').startsWith(filterMo)).reduce((s,w)=>s+w.amount,0);
+
+  // Savings rate = logged this period / income this period
+  const [fy,fm]=filterMo.split('-').map(Number);
+  const moInc=txns.filter(x=>x.type==='income'&&(x.date||'').startsWith(filterMo)).reduce((s,x)=>s+x.amount,0);
+  const rate=moInc>0?Math.round((periodLogged/moInc)*100):0;
+
+  // ── Update cards ──
+  document.getElementById('sav-balance').textContent=fmt(balance);
+  document.getElementById('sav-sub').textContent='Total logged '+fmt(totalSavLogged)+' · Withdrawn '+fmt(totalWd);
+  document.getElementById('sav-planned').textContent=fmt(periodPlanned);
+  document.getElementById('sav-month').textContent=fmt(periodLogged);
+  document.getElementById('sav-withdrawn').textContent=fmt(periodWd);
+  document.getElementById('sav-rate').textContent=rate+'%';
+
+  // ── Period label ──
+  const [py,pm]=filterMo.split('-').map(Number);
+  const lbl=document.getElementById('sav-period-label');
+  if(lbl) lbl.textContent=MOF[pm-1]+' '+py;
+
+  // ── Build savings history table ──
+  // Merge planned savings and logged savings for the selected period
+  const plannedForPeriod=plans.filter(p=>p.planType==='savings'&&p.date===filterMo);
+  const loggedForPeriod=[...periodSavTxns].sort((a,b)=>b.id-a.id);
+
+  // Create rows: match planned to logged by linkedTxnId if available, otherwise list separately
+  const rows=[];
+  const matchedLoggedIds=new Set();
+
+  plannedForPeriod.forEach(p=>{
+    const linked=p.linkedTxnId?loggedForPeriod.find(t=>t.id===p.linkedTxnId):null;
+    if(linked) matchedLoggedIds.add(linked.id);
+    rows.push({desc:p.desc,planned:p.amount,logged:linked?linked.amount:null,planId:p.id,txnId:linked?linked.id:null,done:p.done,date:p.date});
+  });
+  // Add logged entries that have no matching plan
+  loggedForPeriod.filter(t=>!matchedLoggedIds.has(t.id)).forEach(t=>{
+    rows.push({desc:t.desc,planned:null,logged:t.amount,planId:null,txnId:t.id,done:true,date:t.date});
+  });
+
+  const rowsEl=document.getElementById('sav-history-rows');
+  const footerEl=document.getElementById('sav-table-footer');
+  if(!rows.length){
+    rowsEl.innerHTML='<div class="empty" style="padding:24px"><p>No savings records for this period</p></div>';
+    if(footerEl) footerEl.style.display='none';
+  } else {
+    rowsEl.innerHTML=rows.map(r=>`
+      <div class="sav-table-row">
+        <div>
+          <div class="sav-table-desc">${r.desc}</div>
+          <div class="sav-table-meta">${displayDate(r.date)}${r.done?' · ✓ Logged':''}</div>
+        </div>
+        <div class="sav-table-amt ${r.planned!==null?'planned':'empty'}">${r.planned!==null?fmt(r.planned):'—'}</div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;">
+          <span class="sav-table-amt ${r.logged!==null?'logged':'empty'}">${r.logged!==null?fmt(r.logged):'—'}</span>
+          ${r.planId&&!r.done?`<button class="sav-log-btn" onclick="quickLogSavingsPlan(${r.planId})">Log</button>`:''}
+          ${r.txnId?`<button onclick="delTxn(${r.txnId})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:2px;" title="Delete">✕</button>`:''}
+        </div>
+      </div>`).join('');
+    const footPlanned=rows.reduce((s,r)=>s+(r.planned||0),0);
+    const footLogged=rows.reduce((s,r)=>s+(r.logged||0),0);
+    if(footerEl){
+      footerEl.style.display='grid';
+      document.getElementById('sav-footer-planned').textContent=fmt(footPlanned);
+      document.getElementById('sav-footer-logged').textContent=fmt(footLogged);
+    }
+  }
+
+  // ── Planned savings from planner ──
+  renderPlannedInSavings(filterMo);
+
+  // ── Withdrawal list ──
+  const wl=document.getElementById('w-list');
+  const sortedWd=[...withdrawals].sort((a,b)=>b.id-a.id);
+  wl.innerHTML=sortedWd.length?sortedWd.map(w=>`<div class="wd-row"><div class="wd-icon">💸</div><div class="wd-info"><div class="wd-reason">${w.reason}</div><div class="wd-meta">${displayDate(w.date)}${w.notes?' · '+w.notes:''}</div><div class="tby">👤 ${w.createdBy||''} · ${w.createdAt||''}</div></div><div class="wd-amt">-${fmt(w.amount)}</div><button onclick="openEditWd(${w.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button><button class="wd-del" onclick="delWd(${w.id})">✕</button></div>`).join(''):'<div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div>';
+}
+
+function renderPlannedInSavings(filterMo){
+  const now=toMo();
+  // Show unlogged savings plans for current or overdue months
+  const savPlansToShow=plans.filter(p=>{
+    if((p.planType||'expense')!=='savings') return false;
+    if(p.done) return false;
+    return p.date===filterMo || (filterMo===now && p.date<now);
+  }).sort((a,b)=>{
+    if(a.date<now && b.date===now) return -1;
+    if(a.date===now && b.date<now) return 1;
+    return a.date.localeCompare(b.date);
+  });
+
+  const container=document.getElementById('planned-in-sav');
+  const listEl=document.getElementById('planned-in-sav-list');
+  const countEl=document.getElementById('planned-in-sav-count');
+  if(!container) return;
+
+  if(!savPlansToShow.length){ container.style.display='none'; return; }
+
+  container.style.display='block';
+  const overdueCnt=savPlansToShow.filter(p=>p.date<now).length;
+  const currentCnt=savPlansToShow.filter(p=>p.date===now).length;
+  const parts=[];
+  if(overdueCnt) parts.push(overdueCnt+' overdue');
+  if(currentCnt) parts.push(currentCnt+' this month');
+  countEl.textContent=parts.join(' · ');
+
+  listEl.innerHTML=savPlansToShow.map(p=>{
+    const isOverdue=p.date<now;
+    const statusLabel=isOverdue
+      ?`<span class="pbadge overdue">Overdue · ${displayDate(p.date)}</span>`
+      :`<span class="pbadge current">This month</span>`;
+    return `<div class="pexp-item ${isOverdue?'overdue-item':'current-item'}">
+      <button class="pexp-check-btn" onclick="togglePlanDone(${p.id})" title="Mark as logged & add to savings">
+      </button>
+      <div class="ticon savings" style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">🏦</div>
+      <div class="pinfo" style="flex:1;min-width:0;">
+        <div class="pname">${p.desc}</div>
+        <div class="pmeta">${statusLabel}${p.recur==='monthly'?' <span style="color:var(--blue);font-size:10px;">↻ monthly</span>':''}</div>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--teal);flex-shrink:0;margin-right:8px;">${fmt(p.amount)}</div>
+      <button class="pexp-log-btn log-now" onclick="quickLogSavingsPlan(${p.id})" title="Log savings now">Log it</button>
+    </div>`;
+  }).join('');
+}
+
 
 // ─── HISTORY ───────────────────────────────────────────────────────────────
 function populateMoFilter(){
@@ -1926,8 +2176,9 @@ async function clearSheetDataRows(tabs, monthFilter){
 
 // ─── PLANNER ─────────────────────────────────────────────────────────────────
 async function addPlan(){
+  const planType=document.getElementById('pl-type')?document.getElementById('pl-type').value:'expense';
   const desc=document.getElementById('pl-desc').value.trim();
-  const cat =document.getElementById('pl-cat').value;
+  const cat =planType==='savings'?'Savings':document.getElementById('pl-cat').value;
   const date=document.getElementById('pl-date').value;
   const amt =parseFloat(document.getElementById('pl-amt').value);
   const recur=document.getElementById('pl-recur').value;
@@ -1935,7 +2186,7 @@ async function addPlan(){
   if(!desc) return toast('Please add a description','er');
   if(!date) return toast('Please select a month','er');
   if(!amt||amt<=0) return toast('Please enter a valid amount','er');
-  const p={id:Date.now(),date,desc,cat,amount:amt,recur,notes,done:false,createdBy:userEmail||'Offline',createdAt:nowStr()};
+  const p={id:Date.now(),date,desc,cat,amount:amt,recur,notes,done:false,planType,createdBy:userEmail||'Offline',createdAt:nowStr()};
   plans.unshift(p); savePlans();
   ['pl-desc','pl-amt','pl-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pl-date').value=toMo();
@@ -1952,7 +2203,7 @@ async function togglePlanDone(id){
     p.linkedTxnId=Date.now(); // store link so we can remove it if unmarked
     const t={
       id:p.linkedTxnId,
-      type:'expense',
+      type:p.planType==='savings'?'savings':'expense',
       desc:p.desc,
       cat:p.cat,
       date:p.date,
@@ -1964,8 +2215,8 @@ async function togglePlanDone(id){
     };
     txns.unshift(t);
     saveTxns(); savePlans();
-    render(); renderHistory(); renderPlanner(); renderQLists(); renderPendingBanner();
-    toast('Logged & added to expenses ✅','ok');
+    render(); renderHistory(); renderPlanner(); renderQLists(); renderPendingBanner(); renderSavings();
+    toast(p.planType==='savings'?'Savings logged ✅':'Logged & added to expenses ✅','ok');
     if(accessToken){
       setSyncDot('sy');
       await Promise.all([pushTxns([t]), updatePlanInSheet(p)]);
@@ -2129,7 +2380,8 @@ function renderPlanner(){
         const checkIcon=p.done?'✓':status==='overdue'?'!':'';
         const badgeMap={done:'done',current:'current',overdue:'overdue',future:'future'};
         const badgeTxt={done:'Logged ✓',current:'This month',overdue:'Overdue',future:'Upcoming'};
-        const c=catOf(p.cat);
+        const isSavPlan=(p.planType||'expense')==='savings';
+        const c=isSavPlan?{icon:'🏦',color:'#0f766e'}:catOf(p.cat);
         return `<div class="pitem ${status}">
           <button class="pcheck ${checkCls}" onclick="togglePlanDone(${p.id})" title="${p.done?'Unmark — removes expense':'Mark as logged & add to expenses'}">${checkIcon}</button>
           <div class="ticon expense" style="background:${c.color}22;font-size:14px;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${c.icon}</div>
@@ -2138,6 +2390,7 @@ function renderPlanner(){
             <div class="pmeta">
               <span class="pbadge ${badgeMap[status]}">${badgeTxt[status]}</span>
               <span>${p.cat}</span>
+              ${isSavPlan?'<span style="color:var(--teal);font-size:10px;font-weight:600;">🏦 Savings</span>':''}
               ${p.recur==='monthly'?'<span style="color:var(--blue);font-size:10px;">↻ monthly</span>':''}
               ${p.notes?'· '+p.notes:''}
             </div>
@@ -2157,7 +2410,7 @@ async function quickLogPlanned(planId){
   // Create the actual expense transaction directly — no manual step needed
   const t={
     id:Date.now(),
-    type:'expense',
+    type:p.planType==='savings'?'savings':'expense',
     desc:p.desc,
     cat:p.cat,
     date:p.date,        // Use the plan's own month, not necessarily current month
