@@ -1240,7 +1240,7 @@ function exportJSON(){
 function importJSON(e){
   const file=e.target.files[0];if(!file)return;
   const r=new FileReader();
-  r.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(!data.transactions)throw new Error();pendingAction=()=>{txns=data.transactions;withdrawals=data.withdrawals||[];if(data.categories)cats=data.categories;if(data.sources)srcs=data.sources;saveTxns();saveWds();saveCats();saveSrcs();rebuildDropdowns();populateMoFilter();render();renderSavings();toast('Imported! 📥','ok');};openDlg('Import Data','Replace all data with '+data.transactions.length+' transactions?');};catch{toast('Invalid JSON','er');}};
+  r.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(!data.transactions)throw new Error();pendingAction=()=>{txns=data.transactions;withdrawals=data.withdrawals||[];if(data.categories)cats=data.categories;if(data.sources)srcs=data.sources;saveTxns();saveWds();saveCats();saveSrcs();rebuildDropdowns();populateMoFilter();render();renderSavings();toast('Imported! 📥','ok');};openDlg('Import Data','Replace all data with '+data.transactions.length+' transactions?');}catch(e){toast('Invalid JSON','er');}};
   r.readAsText(file);e.target.value='';
 }
 function dl(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
