@@ -605,6 +605,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <button class="pk wide" onclick="pk('0')">0</button><button class="pk" onclick="pdel()">⌫</button>
         </div>
         <div class="perr" id="perr"></div>
+        <button onclick="resetPIN()" style="margin-top:16px;background:none;border:none;font-size:12px;color:var(--text3);cursor:pointer;text-decoration:underline;">Forgot PIN? Reset to 1234</button>
       </div>
 
       <div id="adm-panel" class="adm">
@@ -782,6 +783,8 @@ let withdrawals = JSON.parse(localStorage.getItem('hft_wds')   || '[]');
 let cats        = JSON.parse(localStorage.getItem('hft_cats')  || JSON.stringify(DEF_CATS));
 let srcs        = JSON.parse(localStorage.getItem('hft_srcs')  || JSON.stringify(DEF_SRCS));
 let settings    = JSON.parse(localStorage.getItem('hft_cfg')   || JSON.stringify({appName:'Finance Tracker',currency:'K',budgetTarget:null,pin:'1234'}));
+// Safety: ensure pin always exists (in case old storage had no pin key)
+if(!settings.pin) { settings.pin='1234'; localStorage.setItem('hft_cfg',JSON.stringify(settings)); }
 let curMonth    = new Date().getMonth();
 let curYear     = new Date().getFullYear();
 let adminOpen   = false, pinBuf = '', pendingAction = null;
@@ -1579,6 +1582,15 @@ function saveBudget(){
   const v=parseFloat(document.getElementById('set-budget').value);
   settings.budgetTarget=v>0?v:null;saveCfg();applySettings();renderDashboard();toast('Budget saved! 🎯','ok');
 }
+function resetPIN(){
+  // Wipe stored settings pin and reset to 1234
+  settings.pin='1234';
+  saveCfg();
+  document.getElementById('perr').textContent='PIN reset to 1234';
+  pinBuf=''; updDots();
+  toast('PIN reset to 1234 — enter it now','ok');
+}
+
 function changePin(){
   const c=document.getElementById('pin-cur').value,n=document.getElementById('pin-nw').value;
   if(c!==settings.pin)return toast('Current PIN incorrect','er');
