@@ -301,6 +301,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .dash-txn-list .ti-row{padding:9px 0;}
 .dash-txn-empty{text-align:center;padding:24px;color:var(--text3);font-size:13px;}
 
+
+/* EXPENSE CATEGORY FILTER */
+.exp-cat-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.exp-cat-btn{padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);font-size:12px;font-weight:500;cursor:pointer;color:var(--text2);transition:all .15s;white-space:nowrap;}
+.exp-cat-btn.active{border-color:var(--accent);background:var(--accent);color:#fff;}
+
+/* EDIT TRANSACTION MODAL */
+.edit-modal-body{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+.edit-modal-body .fi,.edit-modal-body .fs{background:var(--surface2);}
+.dconfirm-green{background:var(--green)!important;}
+
+/* RECURRING CARD */
+.recur-card{background:var(--surface);border-radius:var(--r);padding:14px;box-shadow:var(--sh);margin-bottom:16px;display:flex;align-items:center;gap:12px;}
+.recur-card-icon{font-size:22px;flex-shrink:0;}
+.recur-card-info{flex:1;}
+.recur-card-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:4px;}
+.recur-card-value{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--red);}
+.recur-card-sub{font-size:11px;color:var(--text3);margin-top:3px;}
+
 </style>
 </head>
 <body>
@@ -444,21 +463,37 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Expense hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,#b83232,#d94f4f);color:#fff;">
-          <div class="cl" style="color:rgba(255,255,255,.75);">Total Expenses This Month (Logged + Planned)</div>
+          <div class="cl" style="color:rgba(255,255,255,.75);">Total Expenses This Month</div>
           <div style="font-family:'Playfair Display',serif;font-size:30px;font-weight:700;line-height:1;" id="exp-hero-total">K 0.00</div>
           <div style="font-size:12px;opacity:.75;margin-top:6px;" id="exp-hero-sub">K 0.00 logged · K 0.00 planned</div>
         </div>
-        <div class="card"><div class="ci">🧾</div><div class="cl">Expenses This Month</div><div class="cv r" id="exp-hero-logged">K 0.00</div></div>
-        <div class="card"><div class="ci">📅</div><div class="cl">From Planner</div><div class="cv r" id="exp-hero-planned">K 0.00</div></div>
+        <div class="card"><div class="ci">🧾</div><div class="cl">Logged Expenses</div><div class="cv r" id="exp-hero-logged">K 0.00</div></div>
+        <div class="card"><div class="ci">📅</div><div class="cl">Planned (This Month)</div><div class="cv r" id="exp-hero-planned">K 0.00</div></div>
       </div>
+      <!-- Recurring expenses card -->
+      <div class="recur-card">
+        <div class="recur-card-icon">🔁</div>
+        <div class="recur-card-info">
+          <div class="recur-card-label">Total Recurring Expenses</div>
+          <div class="recur-card-value" id="exp-recur-total">K 0.00</div>
+          <div class="recur-card-sub" id="exp-recur-sub">From planner recurring items</div>
+        </div>
+      </div>
+
       <!-- Pending from planner banner -->
       <div class="pending-banner" id="pending-banner">
         ⚠️ <span id="pending-banner-text">You have overdue planned expenses</span>
         <button style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;font-weight:700;font-size:13px;" onclick="sw('planner',document.querySelectorAll('.tb')[4])">View →</button>
       </div>
+
       <!-- 1. This Month's Expenses (top) -->
       <div class="fc" style="padding:14px 16px">
-        <div class="st" style="margin-bottom:12px;font-size:14px;">🔴 This Month's Expenses</div>
+        <div class="rh" style="margin-bottom:10px;">
+          <div class="st" style="font-size:14px;">🔴 This Month's Expenses</div>
+          <span id="e-list-total" style="font-size:13px;font-weight:700;color:var(--red);">K 0.00</span>
+        </div>
+        <!-- Category filter -->
+        <div class="exp-cat-filter" id="exp-cat-filter"></div>
         <div id="e-list"><div class="empty" style="padding:12px 0"><p>No expenses this month</p></div></div>
       </div>
       <!-- 2. From Planner (middle) -->
@@ -725,10 +760,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   <div class="dialog">
     <div class="dtitle2" id="dlg-title">Are you sure?</div>
     <div class="dbody" id="dlg-body">This cannot be undone.</div>
-    <!-- EDIT FORM (shown for edit dialogs) -->
+    <!-- EDIT FORM (cat/src) -->
     <div id="dlg-edit-area" style="display:none" class="eform">
       <input type="text" class="fi" id="dlg-edit-name" placeholder="Name">
       <input type="text" class="fi" id="dlg-edit-icon" placeholder="Icon (emoji)" maxlength="4">
+    </div>
+    <!-- EDIT TRANSACTION FORM -->
+    <div id="dlg-txn-edit-area" style="display:none" class="edit-modal-body">
+      <input type="text" class="fi" id="et-desc" placeholder="Description">
+      <select class="fs" id="et-cat"></select>
+      <select class="fs" id="et-src" style="display:none"></select>
+      <input type="month" class="fi" id="et-date">
+      <div class="cw"><span class="cp" id="et-curr-sym">K</span><input type="number" class="fi" id="et-amt" placeholder="0.00" min="0" step="0.01" style="padding-left:30px"></div>
+      <input type="text" class="fi" id="et-notes" placeholder="Notes (optional)">
     </div>
     <div class="dbtns">
       <button class="dcancel" onclick="closeDlg()">Cancel</button>
@@ -778,6 +822,7 @@ const MOF=['January','February','March','April','May','June','July','August','Se
 
 // ─── STATE ─────────────────────────────────────────────────────────────────
 let plans       = JSON.parse(localStorage.getItem('hft_plans') || '[]');
+let expCatFilter= 'all'; // active expense category filter
 let txns        = JSON.parse(localStorage.getItem('hft_txns')  || '[]');
 let withdrawals = JSON.parse(localStorage.getItem('hft_wds')   || '[]');
 let cats        = JSON.parse(localStorage.getItem('hft_cats')  || JSON.stringify(DEF_CATS));
@@ -1389,16 +1434,45 @@ function tRow(t){
   const amtClass=isWd||t.type==='expense'?'expense': t.type==='savings'?'savings':'income';
   const sign=isWd||t.type==='expense'?'-': '+';
   const creator=t.createdBy?`<div class="tby">👤 ${t.createdBy} · ${t.createdAt||''}</div>`:'';
-  return`<div class="ti-row"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}</div><div class="tmeta">${label} · ${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}">${sign}${fmt(t.amount)}</div></div>`;
+  const editBtn=!isWd?`<button onclick="openEditTxn(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button>`:'';
+  const delBtn=isWd?`<button onclick="delWd(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Delete">✕</button>`:`<button onclick="delTxn(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Delete">✕</button>`;
+  return`<div class="ti-row"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}</div><div class="tmeta">${label} · ${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}">${sign}${fmt(t.amount)}</div>${editBtn}${delBtn}</div>`;
+}
+
+function setCatFilter(cat){
+  expCatFilter=cat;
+  // Update button states
+  document.querySelectorAll('.exp-cat-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.cat===cat);
+  });
+  renderQLists();
 }
 
 function renderQLists(){
   const t=moTxns(curYear,curMonth);
   const il=document.getElementById('i-list'),el=document.getElementById('e-list');
   const inc=t.filter(x=>x.type==='income');
-  const exp=t.filter(x=>x.type==='expense');
+  const expAll=t.filter(x=>x.type==='expense');
+
+  // ── Income list ──
   if(il) il.innerHTML=inc.length?inc.map(tRow).join(''):'<div class="empty" style="padding:12px 0"><p>No income this month</p></div>';
-  if(el) el.innerHTML=exp.length?exp.map(tRow).join(''):'<div class="empty" style="padding:12px 0"><p>No expenses this month</p></div>';
+
+  // ── Category filter buttons ──
+  const filterEl=document.getElementById('exp-cat-filter');
+  if(filterEl){
+    const usedCats=[...new Set(expAll.map(x=>x.cat))];
+    filterEl.innerHTML=`<button class="exp-cat-btn ${expCatFilter==='all'?'active':''}" data-cat="all" onclick="setCatFilter('all')">All</button>`+
+      usedCats.map(c=>{const ci=catOf(c);return`<button class="exp-cat-btn ${expCatFilter===c?'active':''}" data-cat="${c}" onclick="setCatFilter('${c.replace(/'/g,"\'")}')">${ci.icon} ${c}</button>`;}).join('');
+  }
+
+  // ── Filter expenses by selected category ──
+  const exp=expCatFilter==='all'?expAll:expAll.filter(x=>x.cat===expCatFilter);
+  if(el) el.innerHTML=exp.length?exp.map(tRow).join(''):'<div class="empty" style="padding:12px 0"><p>No expenses'+(expCatFilter!=='all'?' in this category':'')+' this month</p></div>';
+
+  // ── List total label ──
+  const listTotal=exp.reduce((s,x)=>s+x.amount,0);
+  const ltEl=document.getElementById('e-list-total');
+  if(ltEl) ltEl.textContent=fmt(listTotal)+(expCatFilter!=='all'?' (filtered)':'');
 
   // ── Update income hero card ──
   const incTotal=inc.reduce((s,x)=>s+x.amount,0);
@@ -1413,9 +1487,9 @@ function renderQLists(){
   if(ihc) ihc.textContent=inc.length;
 
   // ── Update expense hero card ──
-  const expLogged=exp.reduce((s,x)=>s+x.amount,0);
-  // Planned expenses for this month (both done and not done — all planned for this month)
+  // Total = logged expenses + all planned expenses for this month
   const nowMo=toMo();
+  const expLogged=expAll.reduce((s,x)=>s+x.amount,0);
   const plannedThisMo=plans.filter(p=>p.date===nowMo);
   const plannedAmt=plannedThisMo.reduce((s,p)=>s+p.amount,0);
   const expTotal=expLogged+plannedAmt;
@@ -1427,6 +1501,14 @@ function renderQLists(){
   if(ehs) ehs.textContent=fmt(expLogged)+' logged · '+fmt(plannedAmt)+' planned';
   if(ehl) ehl.textContent=fmt(expLogged);
   if(ehp) ehp.textContent=fmt(plannedAmt);
+
+  // ── Recurring expenses card ──
+  const recurPlans=plans.filter(p=>p.recur==='monthly');
+  const recurAmt=recurPlans.reduce((s,p)=>s+p.amount,0);
+  const rtEl=document.getElementById('exp-recur-total');
+  const rsEl=document.getElementById('exp-recur-sub');
+  if(rtEl) rtEl.textContent=fmt(recurAmt);
+  if(rsEl) rsEl.textContent=recurPlans.length+' recurring item'+(recurPlans.length===1?'':'s')+' from planner';
 
   // ── Show current + overdue planned expenses in the Expenses tab ──
   const now=toMo();
@@ -1706,6 +1788,7 @@ function openDlg(title,body){
   document.getElementById('dlg-title').textContent=title;
   document.getElementById('dlg-body').textContent=body;
   document.getElementById('dlg-edit-area').style.display='none';
+  document.getElementById('dlg-txn-edit-area').style.display='none';
   document.getElementById('dlg-confirm-btn').textContent='Confirm';
   document.getElementById('dlg-confirm-btn').style.background='var(--red)';
   document.getElementById('overlay').classList.add('show');
@@ -1714,6 +1797,7 @@ function openEditDlg(title,btnText,fn,name='',icon=''){
   document.getElementById('dlg-title').textContent=title;
   document.getElementById('dlg-body').textContent='';
   document.getElementById('dlg-edit-area').style.display='flex';
+  document.getElementById('dlg-txn-edit-area').style.display='none';
   document.getElementById('dlg-edit-name').value=name;
   document.getElementById('dlg-edit-icon').value=icon;
   document.getElementById('dlg-confirm-btn').textContent=btnText;
@@ -1996,6 +2080,67 @@ function renderPendingBanner(){
     txt.textContent=`⚠️ ${overdue.length} overdue planned expense${overdue.length>1?'s':''} not yet logged`;
   } else {
     banner.classList.remove('show');
+  }
+}
+
+
+// ─── EDIT TRANSACTION ────────────────────────────────────────────────────────
+function openEditTxn(id){
+  const t=txns.find(x=>x.id===id);if(!t)return;
+  // Show the txn edit area, hide cat/src edit area
+  document.getElementById('dlg-edit-area').style.display='none';
+  document.getElementById('dlg-txn-edit-area').style.display='flex';
+  // Pre-fill fields
+  document.getElementById('et-desc').value=t.desc||'';
+  document.getElementById('et-date').value=t.date||'';
+  document.getElementById('et-amt').value=t.amount||'';
+  document.getElementById('et-notes').value=t.notes||'';
+  document.getElementById('et-curr-sym').textContent=settings.currency;
+  // Show category or source dropdown depending on type
+  const catSel=document.getElementById('et-cat');
+  const srcSel=document.getElementById('et-src');
+  if(t.type==='expense'||t.type==='savings'){
+    catSel.style.display=''; srcSel.style.display='none';
+    catSel.innerHTML=cats.map(c=>`<option value="${c.name}">${c.icon} ${c.name}</option>`).join('');
+    catSel.value=t.cat||cats[0].name;
+  } else if(t.type==='income'){
+    catSel.style.display='none'; srcSel.style.display='';
+    srcSel.innerHTML=srcs.map(s=>`<option value="${s.name}">${s.icon} ${s.name}</option>`).join('');
+    srcSel.value=t.source||srcs[0].name;
+  } else {
+    catSel.style.display='none'; srcSel.style.display='none';
+  }
+  // Open dialog
+  document.getElementById('dlg-title').textContent='Edit Transaction';
+  document.getElementById('dlg-body').textContent='';
+  document.getElementById('dlg-confirm-btn').textContent='Save Changes';
+  document.getElementById('dlg-confirm-btn').style.background='var(--green)';
+  pendingAction=()=>saveEditTxn(id);
+  document.getElementById('overlay').classList.add('show');
+}
+
+async function saveEditTxn(id){
+  const t=txns.find(x=>x.id===id);if(!t)return;
+  const newDesc=document.getElementById('et-desc').value.trim();
+  const newDate=document.getElementById('et-date').value;
+  const newAmt=parseFloat(document.getElementById('et-amt').value);
+  const newNotes=document.getElementById('et-notes').value.trim();
+  if(!newDesc)return toast('Description required','er');
+  if(!newDate)return toast('Date required','er');
+  if(!newAmt||newAmt<=0)return toast('Valid amount required','er');
+  // Apply changes
+  t.desc=newDesc; t.date=newDate; t.amount=newAmt; t.notes=newNotes;
+  if(t.type==='expense'||t.type==='savings') t.cat=document.getElementById('et-cat').value;
+  else if(t.type==='income') t.source=document.getElementById('et-src').value;
+  saveTxns();
+  render(); renderHistory(); renderSavings();
+  toast('Transaction updated ✅','ok');
+  // Update in sheet
+  if(accessToken){
+    setSyncDot('sy');
+    await deleteTxnFromSheet(t);
+    await pushTxns([t]);
+    setSyncDot('on');
   }
 }
 
