@@ -410,6 +410,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- INCOME -->
     <div id="tp-income" class="tp">
+      <div class="fc" style="padding:14px 16px">
+        <div class="st" style="margin-bottom:12px;font-size:14px;">💚 This Month's Income</div>
+        <div id="i-list"><div class="empty" style="padding:12px 0"><p>No income this month</p></div></div>
+      </div>
       <div class="fc">
         <div class="ftitle">💰 Log Income</div>
         <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="i-desc" placeholder="e.g. Monthly salary..."></div>
@@ -423,10 +427,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="i-notes" placeholder="Any notes..."></div>
         <button class="btn gb" onclick="logIncome()">+ Add Income</button>
       </div>
-      <div class="fc" style="padding:14px 16px">
-        <div class="st" style="margin-bottom:12px;font-size:14px;">💚 This Month's Income</div>
-        <div id="i-list"><div class="empty" style="padding:12px 0"><p>No income this month</p></div></div>
-      </div>
     </div>
 
     <!-- EXPENSES -->
@@ -436,6 +436,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         ⚠️ <span id="pending-banner-text">You have overdue planned expenses</span>
         <button style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;font-weight:700;font-size:13px;" onclick="sw('planner',document.querySelectorAll('.tb')[4])">View →</button>
       </div>
+      <!-- 1. This Month's Expenses (top) -->
+      <div class="fc" style="padding:14px 16px">
+        <div class="st" style="margin-bottom:12px;font-size:14px;">🔴 This Month's Expenses</div>
+        <div id="e-list"><div class="empty" style="padding:12px 0"><p>No expenses this month</p></div></div>
+      </div>
+      <!-- 2. From Planner (middle) -->
+      <div id="planned-in-exp" class="plan-in-exp" style="display:none;">
+        <div class="plan-in-exp-hdr">
+          <div class="st">📅 From Planner</div>
+          <span id="planned-in-exp-count" style="font-size:11px;color:var(--text3);"></span>
+        </div>
+        <div id="planned-in-exp-list"></div>
+      </div>
+      <!-- 3. Log Expense form (bottom) -->
       <div class="fc">
         <div class="ftitle">🧾 Log Expense</div>
         <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="e-desc" placeholder="e.g. Groceries at Shoprite..."></div>
@@ -448,19 +462,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
         <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="e-notes" placeholder="Any notes..."></div>
         <button class="btn" onclick="logExpense()">+ Add Expense</button>
-      </div>
-      <!-- Planned expenses for this month / overdue -->
-      <div id="planned-in-exp" class="plan-in-exp" style="display:none;">
-        <div class="plan-in-exp-hdr">
-          <div class="st">📅 From Planner</div>
-          <span id="planned-in-exp-count" style="font-size:11px;color:var(--text3);"></span>
-        </div>
-        <div id="planned-in-exp-list"></div>
-      </div>
-
-      <div class="fc" style="padding:14px 16px">
-        <div class="st" style="margin-bottom:12px;font-size:14px;">🔴 This Month's Expenses</div>
-        <div id="e-list"><div class="empty" style="padding:12px 0"><p>No expenses this month</p></div></div>
       </div>
     </div>
 
@@ -478,7 +479,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="card"><div class="ci">📊</div><div class="cl">Savings Rate</div><div class="cv gold" id="sav-rate">0%</div></div>
       </div>
 
-      <!-- Log withdrawal -->
+      <!-- Withdrawal history (top) -->
+      <div class="withdraw-sec">
+        <div class="rh"><div class="st">Withdrawal History</div></div>
+        <div class="withdraw-list" id="w-list"><div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div></div>
+      </div>
+
+      <!-- Log withdrawal (bottom) -->
       <div class="fc">
         <div class="ftitle">💸 Log Withdrawal</div>
         <div class="fg"><label class="fl">Reason for Withdrawal</label><input type="text" class="fi" id="w-reason" placeholder="e.g. Emergency car repair..."></div>
@@ -490,12 +497,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
         <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="w-notes" placeholder="Any additional notes..."></div>
         <button class="btn" style="background:var(--red)" onclick="logWithdrawal()">− Record Withdrawal</button>
-      </div>
-
-      <!-- Withdrawal history -->
-      <div class="withdraw-sec">
-        <div class="rh"><div class="st">Withdrawal History</div></div>
-        <div class="withdraw-list" id="w-list"><div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div></div>
       </div>
     </div>
 
@@ -509,8 +510,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="plan-card"><div class="cl">Planned Total</div><div class="cv gold" id="pl-total-amt">K 0</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">this month</div></div>
       </div>
 
-      <!-- Add planned expense -->
-      <div class="fc">
+      <!-- Filter -->
+      <div class="plan-filter">
+        <select class="fs" id="pl-filter" onchange="renderPlanner()">
+          <option value="all">All Planned</option>
+          <option value="current">This Month</option>
+          <option value="overdue">Overdue</option>
+          <option value="future">Upcoming</option>
+          <option value="done">Logged ✓</option>
+        </select>
+      </div>
+
+      <!-- Planned list -->
+      <div id="pl-list"><div class="empty"><div class="eico">📅</div><p>No planned expenses yet</p></div></div>
+
+      <!-- Add planned expense form (bottom) -->
+      <div class="fc" style="margin-top:16px;">
         <div class="ftitle">📅 Add Planned Expense</div>
         <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="pl-desc" placeholder="e.g. School fees, Rent..."></div>
         <div class="frow">
@@ -529,20 +544,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="pl-notes" placeholder="Any notes..."></div>
         <button class="btn" style="background:var(--blue)" onclick="addPlan()">+ Add to Planner</button>
       </div>
-
-      <!-- Filter -->
-      <div class="plan-filter">
-        <select class="fs" id="pl-filter" onchange="renderPlanner()">
-          <option value="all">All Planned</option>
-          <option value="current">This Month</option>
-          <option value="overdue">Overdue</option>
-          <option value="future">Upcoming</option>
-          <option value="done">Logged ✓</option>
-        </select>
-      </div>
-
-      <!-- Planned list -->
-      <div id="pl-list"><div class="empty"><div class="eico">📅</div><p>No planned expenses yet</p></div></div>
     </div>
 
     <!-- HISTORY -->
@@ -1639,11 +1640,14 @@ function openEditDlg(title,btnText,fn,name='',icon=''){
 function closeDlg(){document.getElementById('overlay').classList.remove('show');pendingAction=null;}
 function confirm2(action,title,body){pendingAction=action;openDlg(title,body);}
 function execConfirm(){
-  closeDlg();if(!pendingAction)return;
-  if(typeof pendingAction==='function'){pendingAction();return;}
-  if(pendingAction==='signout')doSignOut();
-  else if(pendingAction==='clearMonth'){txns=txns.filter(t=>!t.date.startsWith(moStr()));saveTxns();render();renderHistory();renderSavings();populateMoFilter();toast('Month cleared','');}
-  else if(pendingAction==='clearAll'){txns=[];withdrawals=[];saveTxns();saveWds();render();renderHistory();renderSavings();populateMoFilter();toast('All data cleared','');}
+  // Capture action BEFORE closing (closeDlg nulls pendingAction)
+  const action=pendingAction;
+  closeDlg();
+  if(!action)return;
+  if(typeof action==='function'){action();return;}
+  if(action==='signout')doSignOut();
+  else if(action==='clearMonth'){txns=txns.filter(t=>!t.date.startsWith(moStr()));saveTxns();render();renderHistory();renderSavings();populateMoFilter();toast('Month cleared','');}
+  else if(action==='clearAll'){txns=[];withdrawals=[];saveTxns();saveWds();render();renderHistory();renderSavings();populateMoFilter();toast('All data cleared','');}
 }
 
 // ─── PLANNER ─────────────────────────────────────────────────────────────────
