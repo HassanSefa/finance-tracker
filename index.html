@@ -234,6 +234,39 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast.ok{background:var(--green);}.toast.er{background:var(--red);}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+
+/* PLANNER TAB */
+.plan-filter{display:flex;gap:8px;margin-bottom:14px;}
+.plan-filter .fs{flex:1;}
+.plan-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;}
+.plan-card{background:var(--surface);border-radius:var(--r);padding:12px;box-shadow:var(--sh);text-align:center;}
+.plan-card .cl{margin-bottom:4px;}
+.plan-card .cv{font-size:16px;}
+.plist{background:var(--surface);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:16px;}
+.plist-hdr{padding:10px 14px;background:var(--surface2);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);display:flex;justify-content:space-between;align-items:center;}
+.pitem{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);transition:background .15s;}
+.pitem:last-child{border-bottom:none;}
+.pitem.done{opacity:.55;}
+.pitem.overdue{background:#fff8f8;}
+.pitem.current{background:#f0fdf8;}
+.pcheck{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all .15s;}
+.pcheck.checked{background:var(--green);border-color:var(--green);color:#fff;}
+.pcheck.overdue-btn{border-color:var(--red);}
+.pcheck:hover{border-color:var(--accent);}
+.pinfo{flex:1;min-width:0;}
+.pname{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pmeta{font-size:11px;color:var(--text3);margin-top:1px;display:flex;gap:6px;align-items:center;}
+.pbadge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px;flex-shrink:0;}
+.pbadge.current{background:var(--gl);color:var(--green);}
+.pbadge.overdue{background:var(--rl);color:var(--red);}
+.pbadge.future{background:var(--bl);color:var(--blue);}
+.pbadge.done{background:var(--surface2);color:var(--text3);}
+.pamt{font-size:13px;font-weight:700;color:var(--text);flex-shrink:0;}
+.pdel{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:3px 5px;border-radius:6px;flex-shrink:0;}
+.pdel:hover{background:var(--rl);color:var(--red);}
+.pending-banner{background:#fff3e0;border:1px solid #fb8c00;border-radius:var(--rs);padding:12px 14px;margin-bottom:14px;font-size:13px;color:#e65100;display:none;align-items:center;gap:8px;font-weight:500;}
+.pending-banner.show{display:flex;}
+
 </style>
 </head>
 <body>
@@ -269,6 +302,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="tb" onclick="sw('income',this)"><span class="ti">💰</span>Income</button>
       <button class="tb" onclick="sw('expenses',this)"><span class="ti">🧾</span>Expenses</button>
       <button class="tb" onclick="sw('savings',this)"><span class="ti">🏦</span>Savings</button>
+      <button class="tb" onclick="sw('planner',this)"><span class="ti">📅</span>Planner</button>
       <button class="tb" onclick="sw('history',this)"><span class="ti">📋</span>History</button>
       <button class="tb" onclick="sw('admin',this)"><span class="ti">⚙️</span>Admin</button>
     </div>
@@ -325,6 +359,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- EXPENSES -->
     <div id="tp-expenses" class="tp">
+      <!-- Pending from planner banner -->
+      <div class="pending-banner" id="pending-banner">
+        ⚠️ <span id="pending-banner-text">You have overdue planned expenses</span>
+        <button style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;font-weight:700;font-size:13px;" onclick="sw('planner',document.querySelectorAll('.tb')[4])">View →</button>
+      </div>
       <div class="fc">
         <div class="ftitle">🧾 Log Expense</div>
         <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="e-desc" placeholder="e.g. Groceries at Shoprite..."></div>
@@ -377,6 +416,52 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="rh"><div class="st">Withdrawal History</div></div>
         <div class="withdraw-list" id="w-list"><div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div></div>
       </div>
+    </div>
+
+
+    <!-- PLANNER -->
+    <div id="tp-planner" class="tp">
+      <!-- Summary cards -->
+      <div class="plan-summary">
+        <div class="plan-card"><div class="cl">This Month</div><div class="cv teal" id="pl-current-count">0</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">planned</div></div>
+        <div class="plan-card"><div class="cl">Pending</div><div class="cv r" id="pl-overdue-count">0</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">overdue</div></div>
+        <div class="plan-card"><div class="cl">Planned Total</div><div class="cv gold" id="pl-total-amt">K 0</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">this month</div></div>
+      </div>
+
+      <!-- Add planned expense -->
+      <div class="fc">
+        <div class="ftitle">📅 Add Planned Expense</div>
+        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="pl-desc" placeholder="e.g. School fees, Rent..."></div>
+        <div class="frow">
+          <div class="fg"><label class="fl">Category</label><select class="fs" id="pl-cat"></select></div>
+          <div class="fg"><label class="fl">Month Due</label><input type="month" class="fi" id="pl-date"></div>
+        </div>
+        <div class="fg"><label class="fl">Expected Amount (<span class="csym">K</span>)</label>
+          <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="pl-amt" placeholder="0.00" min="0" step="0.01"></div>
+        </div>
+        <div class="fg"><label class="fl">Recurring</label>
+          <select class="fs" id="pl-recur">
+            <option value="none">One-time only</option>
+            <option value="monthly">Every month</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="pl-notes" placeholder="Any notes..."></div>
+        <button class="btn" style="background:var(--blue)" onclick="addPlan()">+ Add to Planner</button>
+      </div>
+
+      <!-- Filter -->
+      <div class="plan-filter">
+        <select class="fs" id="pl-filter" onchange="renderPlanner()">
+          <option value="all">All Planned</option>
+          <option value="current">This Month</option>
+          <option value="overdue">Overdue</option>
+          <option value="future">Upcoming</option>
+          <option value="done">Logged ✓</option>
+        </select>
+      </div>
+
+      <!-- Planned list -->
+      <div id="pl-list"><div class="empty"><div class="eico">📅</div><p>No planned expenses yet</p></div></div>
     </div>
 
     <!-- HISTORY -->
@@ -560,6 +645,7 @@ const TAB_INC    = 'Income';
 const TAB_EXP    = 'Expenses';
 const TAB_SAV    = 'Savings';
 const TAB_WD     = 'Withdrawals';
+const TAB_PLN    = 'Planner';
 const TAB_CFG    = 'Config';
 
 // ─── DEFAULT CATEGORIES & SOURCES ──────────────────────────────────────────
@@ -588,6 +674,7 @@ const MO =['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','De
 const MOF=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 // ─── STATE ─────────────────────────────────────────────────────────────────
+let plans       = JSON.parse(localStorage.getItem('hft_plans') || '[]');
 let txns        = JSON.parse(localStorage.getItem('hft_txns')  || '[]');
 let withdrawals = JSON.parse(localStorage.getItem('hft_wds')   || '[]');
 let cats        = JSON.parse(localStorage.getItem('hft_cats')  || JSON.stringify(DEF_CATS));
@@ -598,6 +685,7 @@ let curYear     = new Date().getFullYear();
 let adminOpen   = false, pinBuf = '', pendingAction = null;
 let accessToken = null, userEmail = null, offlineMode = false;
 
+const savePlans= ()=>localStorage.setItem('hft_plans',JSON.stringify(plans));
 const saveTxns = ()=>localStorage.setItem('hft_txns',JSON.stringify(txns));
 const saveWds  = ()=>localStorage.setItem('hft_wds', JSON.stringify(withdrawals));
 const saveCats = ()=>localStorage.setItem('hft_cats',JSON.stringify(cats));
@@ -629,7 +717,8 @@ function initApp(){
   document.getElementById('i-date').value=toMo();
   document.getElementById('e-date').value=toMo();
   document.getElementById('w-date').value=toMo();
-  rebuildDropdowns(); applySettings(); render();
+  document.getElementById('pl-date').value=toMo();
+  rebuildDropdowns(); applySettings(); render(); renderPlanner(); renderPendingBanner();
   setSyncDot(accessToken?'on':'off');
 }
 
@@ -730,6 +819,7 @@ async function ensureTabs(){
     {name:TAB_EXP,headers:['ID','Date','Description','Category','Amount','Notes','CreatedBy','CreatedAt']},
     {name:TAB_SAV,headers:['ID','Date','Description','Amount','Notes','CreatedBy','CreatedAt']},
     {name:TAB_WD, headers:['ID','Date','Reason','Amount','Notes','CreatedBy','CreatedAt']},
+    {name:TAB_PLN, headers:['ID','Date','Description','Category','Amount','Recur','Notes','Done','CreatedBy','CreatedAt']},
     {name:TAB_CFG,headers:['Key','Value']},
   ];
   for(const td of tabDefs){
@@ -750,11 +840,12 @@ async function loadFromSheets(){
   try{
     // Load transactions — fetch each tab separately so one missing tab doesn't break all
     const safeGet=async(range)=>{try{return await shReq('/values/'+encodeURIComponent(range));}catch(e){return {values:[]};}};
-    const [iR,eR,sR,wR,cR]=await Promise.all([
+    const [iR,eR,sR,wR,pR,cR]=await Promise.all([
       safeGet(TAB_INC+'!A2:H'),
       safeGet(TAB_EXP+'!A2:H'),
       safeGet(TAB_SAV+'!A2:G'),
       safeGet(TAB_WD+'!A2:G'),
+      safeGet(TAB_PLN+'!A2:J'),
       safeGet(TAB_CFG+'!A2:B'),
     ]);
     const loaded=[];
@@ -763,6 +854,8 @@ async function loadFromSheets(){
     (sR.values||[]).filter(r=>r[0]&&r[3]).forEach(r=>loaded.push({id:Number(r[0]),type:'savings',date:r[1]||'',desc:r[2]||'',amount:parseFloat(r[3])||0,notes:r[4]||'',createdBy:r[5]||'',createdAt:r[6]||''}));
     const wLoaded=[];
     (wR.values||[]).filter(r=>r[0]&&r[3]).forEach(r=>wLoaded.push({id:Number(r[0]),date:r[1]||'',reason:r[2]||'',amount:parseFloat(r[3])||0,notes:r[4]||'',createdBy:r[5]||'',createdAt:r[6]||''}));
+    const pLoaded=[];
+    (pR.values||[]).filter(r=>r[0]).forEach(r=>pLoaded.push({id:Number(r[0]),date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,recur:r[5]||'none',notes:r[6]||'',done:r[7]==='true',createdBy:r[8]||'',createdAt:r[9]||''}));
 
     // Merge
     const shIds=new Set(loaded.map(t=>t.id));
@@ -772,6 +865,12 @@ async function loadFromSheets(){
     const wLocalOnly=withdrawals.filter(w=>!wShIds.has(w.id));
     withdrawals=[...wLoaded,...wLocalOnly];
     saveTxns();saveWds();
+    // Merge plans
+    const pShIds=new Set(pLoaded.map(p=>p.id));
+    const pLocalOnly=plans.filter(p=>!pShIds.has(p.id));
+    plans=[...pLoaded,...pLocalOnly];
+    savePlans();
+    if(pLocalOnly.length) await pushPlans(pLocalOnly);
 
     // Load config from sheet (cats, srcs)
     const cfgRows=(cR.values||[]);
@@ -788,7 +887,7 @@ async function loadFromSheets(){
     const now=new Date().toLocaleTimeString();
     localStorage.setItem('hft_last_sync',now);
     const ls=document.getElementById('a-lastsync');if(ls)ls.textContent=now;
-    rebuildDropdowns(); render(); renderHistory(); renderSavings(); populateMoFilter(); populateUserFilter();
+    rebuildDropdowns(); render(); renderHistory(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter();
     showBanner('Synced with Google Sheets ☁️');
   }catch(e){
     setSyncDot('er');
@@ -807,6 +906,36 @@ async function pushTxns(list){
     if(exp.length)await shReq('/values/'+TAB_EXP+'!A:H:append?valueInputOption=RAW','POST',{values:exp});
     if(sav.length)await shReq('/values/'+TAB_SAV+'!A:G:append?valueInputOption=RAW','POST',{values:sav});
   }catch(e){console.warn('Push txns:',e);}
+}
+
+async function pushPlans(list){
+  if(!accessToken||!list.length)return;
+  const rows=list.map(p=>[p.id,p.date,p.desc,p.cat,p.amount,p.recur,p.notes||'',p.done?'true':'false',p.createdBy||'',p.createdAt||'']);
+  try{await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:J:append?valueInputOption=RAW','POST',{values:rows});}
+  catch(e){console.warn('Push plans:',e);}
+}
+
+async function updatePlanInSheet(plan){
+  if(!accessToken)return;
+  try{
+    const res=await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:A');
+    const rows=res.values||[];
+    const idx=rows.findIndex(r=>r[0]==String(plan.id));
+    if(idx>=0){
+      await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A'+(idx+1)+':J'+(idx+1)+'?valueInputOption=RAW','PUT',
+        {values:[[plan.id,plan.date,plan.desc,plan.cat,plan.amount,plan.recur,plan.notes||'',plan.done?'true':'false',plan.createdBy||'',plan.createdAt||'']]});
+    }
+  }catch(e){console.warn('Update plan sheet:',e);}
+}
+
+async function deletePlanFromSheet(plan){
+  if(!accessToken)return;
+  try{
+    const res=await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:A');
+    const rows=res.values||[];
+    const idx=rows.findIndex(r=>r[0]==String(plan.id));
+    if(idx>=0)await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A'+(idx+1)+':J'+(idx+1)+':clear','POST',{});
+  }catch(e){console.warn('Del plan sheet:',e);}
 }
 
 async function pushWithdrawals(list){
@@ -864,6 +993,8 @@ function rebuildDropdowns(){
   if(ec) ec.innerHTML=cats.map(c=>`<option value="${c.name}">${c.icon} ${c.name}</option>`).join('');
   const is=document.getElementById('i-src');
   if(is) is.innerHTML=srcs.map(s=>`<option value="${s.name}">${s.icon} ${s.name}</option>`).join('');
+  const pc=document.getElementById('pl-cat');
+  if(pc) pc.innerHTML=cats.map(c=>`<option value="${c.name}">${c.icon} ${c.name}</option>`).join('');
 }
 
 // ─── TABS ──────────────────────────────────────────────────────────────────
@@ -875,8 +1006,9 @@ function sw(id,btn){
   if(id==='history'){populateMoFilter();populateUserFilter();renderHistory();}
   if(id==='dashboard') renderDashboard();
   if(id==='income')    renderQLists();
-  if(id==='expenses')  renderQLists();
+  if(id==='expenses')  {renderQLists();renderPendingBanner();}
   if(id==='savings')   renderSavings();
+  if(id==='planner')   renderPlanner();
   if(id==='admin')     renderAdmin();
 }
 
@@ -943,6 +1075,7 @@ async function logWithdrawal(){
   withdrawals.unshift(w);saveWds();
   ['w-reason','w-amt','w-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('w-date').value=toMo();
+  document.getElementById('pl-date').value=toMo();
   toast('Withdrawal recorded 💸','ok');
   renderSavings();
   if(accessToken){setSyncDot('sy');await pushWithdrawals([w]);setSyncDot('on');}
@@ -1274,6 +1407,149 @@ function execConfirm(){
   else if(pendingAction==='clearMonth'){txns=txns.filter(t=>!t.date.startsWith(moStr()));saveTxns();render();renderHistory();renderSavings();populateMoFilter();toast('Month cleared','');}
   else if(pendingAction==='clearAll'){txns=[];withdrawals=[];saveTxns();saveWds();render();renderHistory();renderSavings();populateMoFilter();toast('All data cleared','');}
 }
+
+// ─── PLANNER ─────────────────────────────────────────────────────────────────
+async function addPlan(){
+  const desc=document.getElementById('pl-desc').value.trim();
+  const cat =document.getElementById('pl-cat').value;
+  const date=document.getElementById('pl-date').value;
+  const amt =parseFloat(document.getElementById('pl-amt').value);
+  const recur=document.getElementById('pl-recur').value;
+  const notes=document.getElementById('pl-notes').value.trim();
+  if(!desc) return toast('Please add a description','er');
+  if(!date) return toast('Please select a month','er');
+  if(!amt||amt<=0) return toast('Please enter a valid amount','er');
+  const p={id:Date.now(),date,desc,cat,amount:amt,recur,notes,done:false,createdBy:userEmail||'Offline',createdAt:nowStr()};
+  plans.unshift(p); savePlans();
+  ['pl-desc','pl-amt','pl-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pl-date').value=toMo();
+  toast('Planned expense added! 📅','ok');
+  renderPlanner(); renderPendingBanner();
+  if(accessToken){setSyncDot('sy');await pushPlans([p]);setSyncDot('on');}
+}
+
+async function togglePlanDone(id){
+  const p=plans.find(x=>x.id===id);if(!p)return;
+  p.done=!p.done;
+  savePlans();
+  renderPlanner(); renderPendingBanner();
+  toast(p.done?'Marked as logged ✓':'Unmarked','ok');
+  if(accessToken) await updatePlanInSheet(p);
+}
+
+async function deletePlan(id){
+  const p=plans.find(x=>x.id===id);
+  plans=plans.filter(x=>x.id!==id); savePlans();
+  renderPlanner(); renderPendingBanner();
+  toast('Removed from planner','');
+  if(accessToken&&p) await deletePlanFromSheet(p);
+}
+
+function planStatus(p){
+  // Returns: 'done' | 'current' | 'overdue' | 'future'
+  if(p.done) return 'done';
+  const now=toMo(); // YYYY-MM
+  if(p.date===now) return 'current';
+  if(p.date<now)   return 'overdue';
+  return 'future';
+}
+
+function renderPlanner(){
+  const filter=document.getElementById('pl-filter')?document.getElementById('pl-filter').value:'all';
+  const now=toMo();
+
+  // ── Handle recurring plans: auto-generate current month copies if not present
+  const recurring=plans.filter(p=>p.recur==='monthly'&&p.date<now);
+  recurring.forEach(p=>{
+    // Check if a copy for current month already exists
+    const exists=plans.some(x=>x.desc===p.desc&&x.cat===p.cat&&x.date===now&&x.id!==p.id);
+    if(!exists){
+      const copy={id:Date.now()+Math.random(),date:now,desc:p.desc,cat:p.cat,amount:p.amount,recur:'monthly',notes:p.notes,done:false,createdBy:p.createdBy,createdAt:nowStr()};
+      plans.unshift(copy); savePlans();
+      if(accessToken) pushPlans([copy]);
+    }
+  });
+
+  // Summary counts
+  const currentPlans=plans.filter(p=>p.date===now&&!p.done);
+  const overdueCount=plans.filter(p=>planStatus(p)==='overdue').length;
+  const currentTotal=plans.filter(p=>p.date===now).reduce((s,p)=>s+p.amount,0);
+  const el=id=>document.getElementById(id);
+  if(el('pl-current-count')) el('pl-current-count').textContent=currentPlans.length;
+  if(el('pl-overdue-count')) el('pl-overdue-count').textContent=overdueCount;
+  if(el('pl-total-amt'))     el('pl-total-amt').textContent=fmt(currentTotal);
+
+  // Filter plans
+  let filtered=[...plans];
+  if(filter==='current') filtered=filtered.filter(p=>p.date===now&&!p.done);
+  else if(filter==='overdue') filtered=filtered.filter(p=>planStatus(p)==='overdue');
+  else if(filter==='future')  filtered=filtered.filter(p=>planStatus(p)==='future');
+  else if(filter==='done')    filtered=filtered.filter(p=>p.done);
+
+  // Sort: overdue first, then current, then future, then done
+  const order={overdue:0,current:1,future:2,done:3};
+  filtered.sort((a,b)=>{
+    const sa=order[planStatus(a)]||0,sb=order[planStatus(b)]||0;
+    if(sa!==sb) return sa-sb;
+    return a.date.localeCompare(b.date);
+  });
+
+  const listEl=document.getElementById('pl-list');
+  if(!filtered.length){
+    listEl.innerHTML='<div class="empty"><div class="eico">📅</div><p>No planned expenses match this filter</p></div>';
+    return;
+  }
+
+  // Group by month
+  const grp={};
+  filtered.forEach(p=>{const k=displayDate(p.date);if(!grp[k])grp[k]=[];grp[k].push(p);});
+
+  listEl.innerHTML=Object.entries(grp).map(([mo,items])=>`
+    <div class="plist">
+      <div class="plist-hdr">
+        <span>${mo}</span>
+        <span style="font-size:12px;font-weight:600;color:var(--text2)">${fmt(items.reduce((s,p)=>s+p.amount,0))}</span>
+      </div>
+      ${items.map(p=>{
+        const status=planStatus(p);
+        const checkCls=p.done?'checked':status==='overdue'?'overdue-btn':'';
+        const checkIcon=p.done?'✓':status==='overdue'?'!':'';
+        const badgeMap={done:'done',current:'current',overdue:'overdue',future:'future'};
+        const badgeTxt={done:'Logged ✓',current:'This month',overdue:'Overdue',future:'Upcoming'};
+        const c=catOf(p.cat);
+        return `<div class="pitem ${status}">
+          <button class="pcheck ${checkCls}" onclick="togglePlanDone(${p.id})" title="${p.done?'Mark as pending':'Mark as logged'}">${checkIcon}</button>
+          <div class="ticon expense" style="background:${c.color}22;font-size:14px;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${c.icon}</div>
+          <div class="pinfo">
+            <div class="pname">${p.desc}</div>
+            <div class="pmeta">
+              <span class="pbadge ${badgeMap[status]}">${badgeTxt[status]}</span>
+              <span>${p.cat}</span>
+              ${p.recur==='monthly'?'<span style="color:var(--blue);font-size:10px;">↻ monthly</span>':''}
+              ${p.notes?'· '+p.notes:''}
+            </div>
+          </div>
+          <div class="pamt">${fmt(p.amount)}</div>
+          <button class="pdel" onclick="deletePlan(${p.id})">✕</button>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+function renderPendingBanner(){
+  // Show banner on expenses tab if there are overdue unlogged plans
+  const overdue=plans.filter(p=>planStatus(p)==='overdue');
+  const banner=document.getElementById('pending-banner');
+  const txt=document.getElementById('pending-banner-text');
+  if(!banner)return;
+  if(overdue.length>0){
+    banner.classList.add('show');
+    txt.textContent=`⚠️ ${overdue.length} overdue planned expense${overdue.length>1?'s':''} not yet logged`;
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
 
 // ─── TOAST ─────────────────────────────────────────────────────────────────
 function toast(msg,type){const e=document.getElementById('toast');e.textContent=msg;e.className='toast '+(type==='ok'?'ok':type==='er'?'er':'')+' show';setTimeout(()=>e.classList.remove('show'),2800);}
