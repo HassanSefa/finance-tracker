@@ -267,6 +267,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .pending-banner{background:#fff3e0;border:1px solid #fb8c00;border-radius:var(--rs);padding:12px 14px;margin-bottom:14px;font-size:13px;color:#e65100;display:none;align-items:center;gap:8px;font-weight:500;}
 .pending-banner.show{display:flex;}
 
+
+/* PLANNED ITEMS IN EXPENSES TAB */
+.plan-in-exp{background:var(--surface);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:16px;}
+.plan-in-exp-hdr{padding:10px 16px;display:flex;justify-content:space-between;align-items:center;}
+.plan-in-exp-hdr .st{font-size:14px;}
+.pexp-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid var(--border);}
+.pexp-item.overdue-item{background:#fff8f8;}
+.pexp-item.current-item{background:#f0fdf8;}
+.pexp-log-btn{padding:6px 12px;border:none;border-radius:20px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.pexp-log-btn.log-now{background:var(--accent);color:#fff;}
+.pexp-log-btn.log-now:hover{opacity:.85;}
+.pexp-check-btn{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;transition:all .15s;}
+.pexp-check-btn.done{background:var(--green);border-color:var(--green);color:#fff;}
+
 </style>
 </head>
 <body>
@@ -377,6 +391,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="e-notes" placeholder="Any notes..."></div>
         <button class="btn" onclick="logExpense()">+ Add Expense</button>
       </div>
+      <!-- Planned expenses for this month / overdue -->
+      <div id="planned-in-exp" class="plan-in-exp" style="display:none;">
+        <div class="plan-in-exp-hdr">
+          <div class="st">📅 From Planner</div>
+          <span id="planned-in-exp-count" style="font-size:11px;color:var(--text3);"></span>
+        </div>
+        <div id="planned-in-exp-list"></div>
+      </div>
+
       <div class="fc" style="padding:14px 16px">
         <div class="st" style="margin-bottom:12px;font-size:14px;">🔴 This Month's Expenses</div>
         <div id="e-list"><div class="empty" style="padding:12px 0"><p>No expenses this month</p></div></div>
@@ -1164,6 +1187,57 @@ function renderQLists(){
   const exp=t.filter(x=>x.type==='expense');
   if(il) il.innerHTML=inc.length?inc.map(tRow).join(''):'<div class="empty" style="padding:12px 0"><p>No income this month</p></div>';
   if(el) el.innerHTML=exp.length?exp.map(tRow).join(''):'<div class="empty" style="padding:12px 0"><p>No expenses this month</p></div>';
+
+  // ── Show current + overdue planned expenses in the Expenses tab ──
+  const now=toMo();
+  // Current month planned (not done) + overdue from previous months (not done)
+  const plannedToShow=plans.filter(p=>{
+    if(p.done) return false;
+    return p.date===now || p.date<now; // current or overdue
+  }).sort((a,b)=>{
+    // Overdue first, then current
+    if(a.date<now && b.date===now) return -1;
+    if(a.date===now && b.date<now) return 1;
+    return a.date.localeCompare(b.date);
+  });
+
+  const container=document.getElementById('planned-in-exp');
+  const listEl=document.getElementById('planned-in-exp-list');
+  const countEl=document.getElementById('planned-in-exp-count');
+  if(!container) return;
+
+  if(plannedToShow.length===0){
+    container.style.display='none';
+    return;
+  }
+
+  container.style.display='block';
+  const overdueCnt=plannedToShow.filter(p=>p.date<now).length;
+  const currentCnt=plannedToShow.filter(p=>p.date===now).length;
+  const parts=[];
+  if(overdueCnt) parts.push(overdueCnt+' overdue');
+  if(currentCnt) parts.push(currentCnt+' this month');
+  countEl.textContent=parts.join(' · ');
+
+  listEl.innerHTML=plannedToShow.map(p=>{
+    const isOverdue=p.date<now;
+    const c=catOf(p.cat);
+    const statusLabel=isOverdue
+      ? `<span class="pbadge overdue">Overdue · ${displayDate(p.date)}</span>`
+      : `<span class="pbadge current">This month</span>`;
+    return `<div class="pexp-item ${isOverdue?'overdue-item':'current-item'}">
+      <button class="pexp-check-btn ${p.done?'done':''}" onclick="togglePlanDone(${p.id});renderQLists();renderPendingBanner();" title="Mark as logged">
+        ${p.done?'✓':''}
+      </button>
+      <div class="ticon expense" style="background:${c.color}22;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">${c.icon}</div>
+      <div class="pinfo" style="flex:1;min-width:0;">
+        <div class="pname">${p.desc}</div>
+        <div class="pmeta">${statusLabel} ${p.cat}</div>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);flex-shrink:0;margin-right:8px;">${fmt(p.amount)}</div>
+      <button class="pexp-log-btn log-now" onclick="quickLogPlanned(${p.id})" title="Log as expense now">Log it</button>
+    </div>`;
+  }).join('');
 }
 
 function renderSavings(){
@@ -1534,6 +1608,34 @@ function renderPlanner(){
         </div>`;
       }).join('')}
     </div>`).join('');
+}
+
+async function quickLogPlanned(planId){
+  const p=plans.find(x=>x.id===planId);
+  if(!p) return;
+  // Pre-fill the expense form with this planned expense's details
+  document.getElementById('e-desc').value=p.desc;
+  // Set category dropdown
+  const catSel=document.getElementById('e-cat');
+  if(catSel){
+    for(let i=0;i<catSel.options.length;i++){
+      if(catSel.options[i].value===p.cat){catSel.selectedIndex=i;break;}
+    }
+  }
+  // Set date to current month (log it for now, even if overdue)
+  document.getElementById('e-date').value=toMo();
+  // Set amount
+  document.getElementById('e-amt').value=p.amount;
+  if(p.notes) document.getElementById('e-notes').value=p.notes;
+
+  // Mark plan as done
+  p.done=true; savePlans();
+  renderQLists(); renderPendingBanner(); renderPlanner();
+  if(accessToken) await updatePlanInSheet(p);
+
+  // Scroll to top of expense form
+  document.getElementById('tp-expenses').scrollTop=0;
+  toast('Form pre-filled — review and tap "+ Add Expense"','ok');
 }
 
 function renderPendingBanner(){
