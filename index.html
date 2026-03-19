@@ -444,12 +444,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Expense hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,#b83232,#d94f4f);color:#fff;">
-          <div class="cl" style="color:rgba(255,255,255,.75);">Total Expenses This Month</div>
+          <div class="cl" style="color:rgba(255,255,255,.75);">Total Expenses This Month (Logged + Planned)</div>
           <div style="font-family:'Playfair Display',serif;font-size:30px;font-weight:700;line-height:1;" id="exp-hero-total">K 0.00</div>
-          <div style="font-size:12px;opacity:.75;margin-top:6px;" id="exp-hero-sub">0 entries this month</div>
+          <div style="font-size:12px;opacity:.75;margin-top:6px;" id="exp-hero-sub">K 0.00 logged · K 0.00 planned</div>
         </div>
-        <div class="card"><div class="ci">📉</div><div class="cl">Highest Expense</div><div class="cv r" id="exp-hero-max">K 0.00</div></div>
-        <div class="card"><div class="ci">🔢</div><div class="cl">No. of Entries</div><div class="cv r" id="exp-hero-count">0</div></div>
+        <div class="card"><div class="ci">🧾</div><div class="cl">Expenses This Month</div><div class="cv r" id="exp-hero-logged">K 0.00</div></div>
+        <div class="card"><div class="ci">📅</div><div class="cl">From Planner</div><div class="cv r" id="exp-hero-planned">K 0.00</div></div>
       </div>
       <!-- Pending from planner banner -->
       <div class="pending-banner" id="pending-banner">
@@ -1386,16 +1386,20 @@ function renderQLists(){
   if(ihc) ihc.textContent=inc.length;
 
   // ── Update expense hero card ──
-  const expTotal=exp.reduce((s,x)=>s+x.amount,0);
-  const expMax=exp.length?Math.max(...exp.map(x=>x.amount)):0;
+  const expLogged=exp.reduce((s,x)=>s+x.amount,0);
+  // Planned expenses for this month (both done and not done — all planned for this month)
+  const nowMo=toMo();
+  const plannedThisMo=plans.filter(p=>p.date===nowMo);
+  const plannedAmt=plannedThisMo.reduce((s,p)=>s+p.amount,0);
+  const expTotal=expLogged+plannedAmt;
   const eht=document.getElementById('exp-hero-total');
   const ehs=document.getElementById('exp-hero-sub');
-  const ehm=document.getElementById('exp-hero-max');
-  const ehc=document.getElementById('exp-hero-count');
+  const ehl=document.getElementById('exp-hero-logged');
+  const ehp=document.getElementById('exp-hero-planned');
   if(eht) eht.textContent=fmt(expTotal);
-  if(ehs) ehs.textContent=exp.length+' entr'+(exp.length===1?'y':'ies')+' this month';
-  if(ehm) ehm.textContent=fmt(expMax);
-  if(ehc) ehc.textContent=exp.length;
+  if(ehs) ehs.textContent=fmt(expLogged)+' logged · '+fmt(plannedAmt)+' planned';
+  if(ehl) ehl.textContent=fmt(expLogged);
+  if(ehp) ehp.textContent=fmt(plannedAmt);
 
   // ── Show current + overdue planned expenses in the Expenses tab ──
   const now=toMo();
