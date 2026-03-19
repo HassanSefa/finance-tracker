@@ -1037,7 +1037,12 @@ async function loadFromSheets(){
     const wLoaded=[];
     (wR.values||[]).filter(r=>r[0]&&r[3]).forEach(r=>wLoaded.push({id:Number(r[0]),date:r[1]||'',reason:r[2]||'',amount:parseFloat(r[3])||0,notes:r[4]||'',createdBy:r[5]||'',createdAt:r[6]||''}));
     const pLoaded=[];
-    (pR.values||[]).filter(r=>r[0]).forEach(r=>pLoaded.push({id:Number(r[0]),date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,recur:r[5]||'none',notes:r[6]||'',done:r[7]==='true',createdBy:r[8]||'',createdAt:r[9]||''}));
+    (pR.values||[]).filter(r=>r[0]).forEach(r=>{
+      const doneVal=r[7]||'false';
+      const isDone=doneVal.startsWith('true');
+      const linkedTxnId=isDone&&doneVal.includes(':')?Number(doneVal.split(':')[1]):null;
+      pLoaded.push({id:Number(r[0]),date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,recur:r[5]||'none',notes:r[6]||'',done:isDone,linkedTxnId,createdBy:r[8]||'',createdAt:r[9]||''});
+    });
 
     // ── Merge sheet data with any local-only entries ─────────────────────────
     const shIds=new Set(loaded.map(t=>t.id));
@@ -1084,7 +1089,10 @@ async function pushTxns(list){
 
 async function pushPlans(list){
   if(!accessToken||!list.length)return;
-  const rows=list.map(p=>[p.id,p.date,p.desc,p.cat,p.amount,p.recur,p.notes||'',p.done?'true':'false',p.createdBy||'',p.createdAt||'']);
+  // Store done status as 'true:linkedTxnId' so we can recover the link on sync
+  const rows=list.map(p=>[p.id,p.date,p.desc,p.cat,p.amount,p.recur,p.notes||'',
+    p.done?(p.linkedTxnId?'true:'+p.linkedTxnId:'true'):'false',
+    p.createdBy||'',p.createdAt||'']);
   try{await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:J:append?valueInputOption=RAW','POST',{values:rows});}
   catch(e){console.warn('Push plans:',e);}
 }
@@ -1095,9 +1103,10 @@ async function updatePlanInSheet(plan){
     const res=await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:A');
     const rows=res.values||[];
     const idx=rows.findIndex(r=>r[0]==String(plan.id));
+    const doneStr=plan.done?(plan.linkedTxnId?'true:'+plan.linkedTxnId:'true'):'false';
     if(idx>=0){
       await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A'+(idx+1)+':J'+(idx+1)+'?valueInputOption=RAW','PUT',
-        {values:[[plan.id,plan.date,plan.desc,plan.cat,plan.amount,plan.recur,plan.notes||'',plan.done?'true':'false',plan.createdBy||'',plan.createdAt||'']]});
+        {values:[[plan.id,plan.date,plan.desc,plan.cat,plan.amount,plan.recur,plan.notes||'',doneStr,plan.createdBy||'',plan.createdAt||'']]});
     }
   }catch(e){console.warn('Update plan sheet:',e);}
 }
@@ -1549,7 +1558,7 @@ function renderQLists(){
       ? `<span class="pbadge overdue">Overdue · ${displayDate(p.date)}</span>`
       : `<span class="pbadge current">This month</span>`;
     return `<div class="pexp-item ${isOverdue?'overdue-item':'current-item'}">
-      <button class="pexp-check-btn ${p.done?'done':''}" onclick="togglePlanDone(${p.id});renderQLists();renderPendingBanner();" title="Mark as logged">
+      <button class="pexp-check-btn ${p.done?'done':''}" onclick="togglePlanDone(${p.id})" title="${p.done?'Unmark':'Mark as logged & add to expenses'}">
         ${p.done?'✓':''}
       </button>
       <div class="ticon expense" style="background:${c.color}22;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">${c.icon}</div>
@@ -1937,11 +1946,47 @@ async function addPlan(){
 
 async function togglePlanDone(id){
   const p=plans.find(x=>x.id===id);if(!p)return;
-  p.done=!p.done;
-  savePlans();
-  renderPlanner(); renderPendingBanner();
-  toast(p.done?'Marked as logged ✓':'Unmarked','ok');
-  if(accessToken) await updatePlanInSheet(p);
+  if(!p.done){
+    // Marking as DONE — create an actual expense transaction
+    p.done=true;
+    p.linkedTxnId=Date.now(); // store link so we can remove it if unmarked
+    const t={
+      id:p.linkedTxnId,
+      type:'expense',
+      desc:p.desc,
+      cat:p.cat,
+      date:p.date,
+      amount:p.amount,
+      notes:p.notes||'',
+      createdBy:userEmail||'Offline',
+      createdAt:nowStr(),
+      fromPlanner:true
+    };
+    txns.unshift(t);
+    saveTxns(); savePlans();
+    render(); renderHistory(); renderPlanner(); renderQLists(); renderPendingBanner();
+    toast('Logged & added to expenses ✅','ok');
+    if(accessToken){
+      setSyncDot('sy');
+      await Promise.all([pushTxns([t]), updatePlanInSheet(p)]);
+      setSyncDot('on');
+    }
+  } else {
+    // Unmarking — remove the linked expense transaction if it exists
+    if(p.linkedTxnId){
+      const linked=txns.find(t=>t.id===p.linkedTxnId);
+      if(linked){
+        txns=txns.filter(t=>t.id!==p.linkedTxnId);
+        saveTxns();
+        if(accessToken) await deleteTxnFromSheet(linked);
+      }
+    }
+    p.done=false; p.linkedTxnId=null;
+    savePlans();
+    render(); renderHistory(); renderPlanner(); renderQLists(); renderPendingBanner();
+    toast('Unmarked — expense removed','');
+    if(accessToken) await updatePlanInSheet(p);
+  }
 }
 
 async function deletePlan(id){
@@ -2086,7 +2131,7 @@ function renderPlanner(){
         const badgeTxt={done:'Logged ✓',current:'This month',overdue:'Overdue',future:'Upcoming'};
         const c=catOf(p.cat);
         return `<div class="pitem ${status}">
-          <button class="pcheck ${checkCls}" onclick="togglePlanDone(${p.id})" title="${p.done?'Mark as pending':'Mark as logged'}">${checkIcon}</button>
+          <button class="pcheck ${checkCls}" onclick="togglePlanDone(${p.id})" title="${p.done?'Unmark — removes expense':'Mark as logged & add to expenses'}">${checkIcon}</button>
           <div class="ticon expense" style="background:${c.color}22;font-size:14px;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${c.icon}</div>
           <div class="pinfo">
             <div class="pname">${p.desc}</div>
