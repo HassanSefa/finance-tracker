@@ -710,8 +710,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <!-- DANGER -->
         <div class="dzone">
           <div class="dtitle">⚠️ Danger Zone</div>
-          <button class="dbtn" onclick="confirm2('clearMonth','Clear This Month','Delete all transactions for the current month. Cannot be undone.')">🗑️ Clear Current Month</button>
-          <button class="dbtn" onclick="confirm2('clearAll','Clear ALL Data','Delete every transaction permanently. Cannot be undone.')">💥 Clear All Data</button>
+          <button class="dbtn" onclick="confirm2('clearMonth','Clear This Month','Delete all transactions for the current month from the app AND Google Sheets. Cannot be undone.')">🗑️ Clear Current Month</button>
+          <button class="dbtn" onclick="confirm2('clearAll','Clear ALL Data','Delete every transaction from the app AND Google Sheets permanently. This is the full reset. Cannot be undone.')">💥 Clear All Data (App + Sheets)</button>
         </div>
       </div>
     </div>
@@ -940,7 +940,6 @@ async function loadFromSheets(){
   if(!accessToken)return;
   setSyncDot('sy');
   try{
-    // Load transactions — fetch each tab separately so one missing tab doesn't break all
     const safeGet=async(range)=>{try{return await shReq('/values/'+encodeURIComponent(range));}catch(e){return {values:[]};}};
     const [iR,eR,sR,wR,pR,cR]=await Promise.all([
       safeGet(TAB_INC+'!A2:H'),
@@ -950,6 +949,39 @@ async function loadFromSheets(){
       safeGet(TAB_PLN+'!A2:J'),
       safeGet(TAB_CFG+'!A2:B'),
     ]);
+
+    // ── Read config first — check for cleared_at flag ──────────────────────
+    const cfgRows=(cR.values||[]);
+    const cfgMap={};cfgRows.forEach(r=>{if(r[0])cfgMap[r[0]]=r[1];});
+    if(cfgMap['cats']){try{cats=JSON.parse(cfgMap['cats']);}catch(e){}}
+    if(cfgMap['srcs']){try{srcs=JSON.parse(cfgMap['srcs']);}catch(e){}}
+    saveCats();saveSrcs();
+
+    // ── Check cleared_at flag — wipe local if sheet was cleared more recently ─
+    const clearedAt = cfgMap['cleared_at'] ? Number(cfgMap['cleared_at']) : 0;
+    const localLastAdded = txns.length>0 ? Math.max(...txns.map(t=>t.id)) : 0;
+    if(clearedAt > 0 && clearedAt >= localLastAdded){
+      txns=[]; withdrawals=[]; plans=[];
+      saveTxns(); saveWds(); savePlans();
+      localStorage.removeItem('hft_last_sync');
+    }
+    // ── Check cleared_month flags ─────────────────────────────────────────────
+    Object.keys(cfgMap).forEach(key=>{
+      if(key.startsWith('cleared_month_')){
+        const clearedMo=key.replace('cleared_month_',''); // e.g. '2026-03'
+        const moTs=Number(cfgMap[key]);
+        const localMoLastAdded=txns.filter(t=>(t.date||'').startsWith(clearedMo));
+        const localMoMax=localMoLastAdded.length>0?Math.max(...localMoLastAdded.map(t=>t.id)):0;
+        if(moTs>0 && moTs>=localMoMax){
+          txns=txns.filter(t=>!(t.date||'').startsWith(clearedMo));
+          withdrawals=withdrawals.filter(w=>!(w.date||'').startsWith(clearedMo));
+          plans=plans.filter(p=>!(p.date||'').startsWith(clearedMo));
+          saveTxns(); saveWds(); savePlans();
+        }
+      }
+    });
+
+    // ── Parse sheet data ────────────────────────────────────────────────────
     const loaded=[];
     (iR.values||[]).filter(r=>r[0]&&r[4]).forEach(r=>loaded.push({id:Number(r[0]),type:'income',date:r[1]||'',desc:r[2]||'',source:r[3]||'Other',amount:parseFloat(r[4])||0,notes:r[5]||'',createdBy:r[6]||'',createdAt:r[7]||''}));
     (eR.values||[]).filter(r=>r[0]&&r[4]).forEach(r=>loaded.push({id:Number(r[0]),type:'expense',date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,notes:r[5]||'',createdBy:r[6]||'',createdAt:r[7]||''}));
@@ -959,7 +991,7 @@ async function loadFromSheets(){
     const pLoaded=[];
     (pR.values||[]).filter(r=>r[0]).forEach(r=>pLoaded.push({id:Number(r[0]),date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,recur:r[5]||'none',notes:r[6]||'',done:r[7]==='true',createdBy:r[8]||'',createdAt:r[9]||''}));
 
-    // Merge
+    // ── Merge sheet data with any local-only entries ─────────────────────────
     const shIds=new Set(loaded.map(t=>t.id));
     const localOnly=txns.filter(t=>!shIds.has(t.id));
     txns=[...loaded,...localOnly];
@@ -967,23 +999,15 @@ async function loadFromSheets(){
     const wLocalOnly=withdrawals.filter(w=>!wShIds.has(w.id));
     withdrawals=[...wLoaded,...wLocalOnly];
     saveTxns();saveWds();
-    // Merge plans
     const pShIds=new Set(pLoaded.map(p=>p.id));
     const pLocalOnly=plans.filter(p=>!pShIds.has(p.id));
     plans=[...pLoaded,...pLocalOnly];
     savePlans();
-    if(pLocalOnly.length) await pushPlans(pLocalOnly);
 
-    // Load config from sheet (cats, srcs)
-    const cfgRows=(cR.values||[]);
-    const cfgMap={};cfgRows.forEach(r=>{if(r[0])cfgMap[r[0]]=r[1];});
-    if(cfgMap['cats']){try{cats=JSON.parse(cfgMap['cats']);}catch(e){}}
-    if(cfgMap['srcs']){try{srcs=JSON.parse(cfgMap['srcs']);}catch(e){}}
-    saveCats();saveSrcs();
-
-    // Push local-only to sheet
+    // Push any local-only entries up to sheet
     if(localOnly.length) await pushTxns(localOnly);
     if(wLocalOnly.length) await pushWithdrawals(wLocalOnly);
+    if(pLocalOnly.length) await pushPlans(pLocalOnly);
 
     setSyncDot('on');
     const now=new Date().toLocaleTimeString();
@@ -1688,14 +1712,109 @@ function openEditDlg(title,btnText,fn,name='',icon=''){
 function closeDlg(){document.getElementById('overlay').classList.remove('show');pendingAction=null;}
 function confirm2(action,title,body){pendingAction=action;openDlg(title,body);}
 function execConfirm(){
-  // Capture action BEFORE closing (closeDlg nulls pendingAction)
   const action=pendingAction;
   closeDlg();
   if(!action)return;
   if(typeof action==='function'){action();return;}
-  if(action==='signout')doSignOut();
-  else if(action==='clearMonth'){txns=txns.filter(t=>!t.date.startsWith(moStr()));saveTxns();render();renderHistory();renderSavings();populateMoFilter();toast('Month cleared','');}
-  else if(action==='clearAll'){txns=[];withdrawals=[];saveTxns();saveWds();render();renderHistory();renderSavings();populateMoFilter();toast('All data cleared','');}
+  if(action==='signout') doSignOut();
+  else if(action==='clearMonth') doClearMonth();
+  else if(action==='clearAll')   doClearAll();
+}
+
+async function doClearMonth(){
+  const mo=moStr();
+  const clearTime=Date.now();
+  // 1. Clear locally
+  txns=txns.filter(t=>!t.date.startsWith(mo));
+  withdrawals=withdrawals.filter(w=>!w.date.startsWith(mo));
+  plans=plans.filter(p=>!p.date.startsWith(mo));
+  saveTxns();saveWds();savePlans();
+  render();renderHistory();renderSavings();renderPlanner();populateMoFilter();populateDashFilter();
+  toast('Clearing from Google Sheets...','');
+  if(accessToken){
+    try{
+      await clearSheetDataRows([TAB_INC,TAB_EXP,TAB_SAV,TAB_WD,TAB_PLN], mo);
+      // Write a month-specific clear flag so other devices also drop this month
+      await shReq('/values/'+encodeURIComponent(TAB_CFG)+'!A:B:append?valueInputOption=RAW','POST',{
+        values:[['cleared_month_'+mo, String(clearTime)]]
+      });
+      showBanner('Month '+mo+' cleared from app & all devices ✅');
+      toast('Month cleared ✅','ok');
+    } catch(e){
+      toast('Local cleared. Sheet clear failed: '+e.message,'er');
+    }
+  } else {
+    toast('Month cleared locally (offline mode)','ok');
+  }
+}
+
+async function doClearAll(){
+  const clearTime = Date.now();
+
+  // 1. Clear all local storage immediately
+  txns=[]; withdrawals=[]; plans=[];
+  saveTxns(); saveWds(); savePlans();
+  localStorage.removeItem('hft_last_sync');
+
+  // 2. Update UI right away so user sees it's cleared
+  render(); renderHistory(); renderSavings(); renderPlanner();
+  populateMoFilter(); populateDashFilter();
+  toast('Clearing from Google Sheets...','');
+
+  if(accessToken){
+    try{
+      // 3. Wipe all data rows from every sheet tab
+      await clearSheetDataRows([TAB_INC,TAB_EXP,TAB_SAV,TAB_WD,TAB_PLN], null);
+
+      // 4. Write cleared_at timestamp to Config — this signals ALL other devices
+      //    to wipe their local data on next sync instead of restoring old rows
+      await clearSheetDataRows([TAB_CFG], null);
+      await shReq('/values/'+encodeURIComponent(TAB_CFG)+'!A:B:append?valueInputOption=RAW','POST',{
+        values:[['cleared_at', String(clearTime)]]
+      });
+
+      // 5. Re-sync categories & sources back (preserve settings, just lose transactions)
+      await syncConfig();
+
+      showBanner('All data cleared from app & all devices ✅');
+      toast('All data cleared! ✅','ok');
+    } catch(e){
+      toast('Local cleared. Sheet clear failed: '+e.message,'er');
+    }
+  } else {
+    toast('All data cleared locally (offline mode)','ok');
+  }
+}
+
+async function clearSheetDataRows(tabs, monthFilter){
+  // For each tab, find all data rows and clear them
+  // monthFilter = 'YYYY-MM' to only clear that month, or null to clear all data rows
+  for(const tab of tabs){
+    try{
+      const res = await shReq('/values/'+encodeURIComponent(tab)+'!A:A');
+      const rows = res.values || [];
+      // rows[0] = header, rows[1..] = data
+      const rowsToClear = [];
+      for(let i=1; i<rows.length; i++){
+        if(!monthFilter){
+          // Clear all data rows
+          rowsToClear.push(i+1); // 1-indexed sheet row
+        } else {
+          // Only clear rows whose date column (col B = index 1) starts with the month
+          const fullRow = await shReq('/values/'+encodeURIComponent(tab)+'!A'+(i+1)+':J'+(i+1));
+          const rowData = (fullRow.values||[[]])[0]||[];
+          const dateVal = rowData[1]||'';
+          if(dateVal.startsWith(monthFilter)) rowsToClear.push(i+1);
+        }
+      }
+      if(rowsToClear.length===0) continue;
+      // Use batchClear to clear all matched rows in one request
+      const ranges = rowsToClear.map(r=>encodeURIComponent(tab)+'!A'+r+':J'+r);
+      await shReq('/values:batchClear','POST',{ranges: rowsToClear.map(r=>tab+'!A'+r+':J'+r)});
+    } catch(e){
+      console.warn('Clear failed for tab '+tab+':',e);
+    }
+  }
 }
 
 // ─── PLANNER ─────────────────────────────────────────────────────────────────
