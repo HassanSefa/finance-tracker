@@ -641,15 +641,38 @@ function signIn(){
     callback:(resp)=>{
       if(resp.error){toast('Sign-in failed: '+resp.error,'er');return;}
       accessToken=resp.access_token;
+      // Get user info then launch app — don't block on sheets setup
       fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
-        .then(r=>r.json()).then(info=>{
+        .then(r=>r.json())
+        .then(info=>{
           userEmail=info.email||'Google User';
           localStorage.setItem('hft_email',userEmail);
+          showMain(); // Show app immediately
+          // Then set up sheets and load data in background
+          setupAndSync();
+        })
+        .catch(()=>{
+          userEmail='Google User';
           showMain();
-          setTimeout(()=>ensureTabs().then(()=>loadFromSheets()),500);
-        }).catch(()=>{userEmail='Google User';showMain();});
+          setupAndSync();
+        });
     }
   }).requestAccessToken();
+}
+
+async function setupAndSync(){
+  try{
+    await ensureTabs();
+  }catch(e){
+    console.warn('Tab setup failed, trying sync anyway:',e);
+  }
+  try{
+    await loadFromSheets();
+  }catch(e){
+    console.warn('Initial sync failed:',e);
+    setSyncDot('er');
+    showBanner('Could not sync — check your connection','err');
+  }
 }
 
 function useOffline(){offlineMode=true;showMain();setSyncDot('off');showBanner('Offline mode — data saved locally','warn');}
@@ -696,37 +719,43 @@ async function shReq(path,method='GET',body=null){
 }
 
 async function ensureTabs(){
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  let have=[];
   try{
     const meta=await shReq('');
-    const have=meta.sheets.map(s=>s.properties.title);
-    const need=[TAB_INC,TAB_EXP,TAB_SAV,TAB_WD,TAB_CFG];
-    const headers={
-      [TAB_INC]:['ID','Date','Description','Source','Amount','Notes','CreatedBy','CreatedAt'],
-      [TAB_EXP]:['ID','Date','Description','Category','Amount','Notes','CreatedBy','CreatedAt'],
-      [TAB_SAV]:['ID','Date','Description','Amount','Notes','CreatedBy','CreatedAt'],
-      [TAB_WD]: ['ID','Date','Reason','Amount','Notes','CreatedBy','CreatedAt'],
-      [TAB_CFG]:['Key','Value'],
-    };
-    for(const tab of need){
-      if(!have.includes(tab)){
-        await shReq(':batchUpdate','POST',{requests:[{addSheet:{properties:{title:tab}}}]});
-        await shReq('/values/'+tab+'!A1:append?valueInputOption=RAW','POST',{values:[headers[tab]]});
-      }
+    have=meta.sheets.map(s=>s.properties.title);
+  }catch(e){console.warn('Could not read sheet metadata:',e);return;}
+  const tabDefs=[
+    {name:TAB_INC,headers:['ID','Date','Description','Source','Amount','Notes','CreatedBy','CreatedAt']},
+    {name:TAB_EXP,headers:['ID','Date','Description','Category','Amount','Notes','CreatedBy','CreatedAt']},
+    {name:TAB_SAV,headers:['ID','Date','Description','Amount','Notes','CreatedBy','CreatedAt']},
+    {name:TAB_WD, headers:['ID','Date','Reason','Amount','Notes','CreatedBy','CreatedAt']},
+    {name:TAB_CFG,headers:['Key','Value']},
+  ];
+  for(const td of tabDefs){
+    if(!have.includes(td.name)){
+      try{
+        await shReq(':batchUpdate','POST',{requests:[{addSheet:{properties:{title:td.name}}}]});
+        await sleep(400);
+        await shReq('/values/'+encodeURIComponent(td.name)+'!A1:append?valueInputOption=RAW','POST',{values:[td.headers]});
+        await sleep(200);
+      }catch(e){console.warn('Could not create tab '+td.name+':',e);}
     }
-  }catch(e){console.warn('Tab setup:',e);}
+  }
 }
 
 async function loadFromSheets(){
   if(!accessToken)return;
   setSyncDot('sy');
   try{
-    // Load transactions
+    // Load transactions — fetch each tab separately so one missing tab doesn't break all
+    const safeGet=async(range)=>{try{return await shReq('/values/'+encodeURIComponent(range));}catch(e){return {values:[]};}};
     const [iR,eR,sR,wR,cR]=await Promise.all([
-      shReq('/values/'+TAB_INC+'!A2:H'),
-      shReq('/values/'+TAB_EXP+'!A2:H'),
-      shReq('/values/'+TAB_SAV+'!A2:G'),
-      shReq('/values/'+TAB_WD+'!A2:G'),
-      shReq('/values/'+TAB_CFG+'!A2:B'),
+      safeGet(TAB_INC+'!A2:H'),
+      safeGet(TAB_EXP+'!A2:H'),
+      safeGet(TAB_SAV+'!A2:G'),
+      safeGet(TAB_WD+'!A2:G'),
+      safeGet(TAB_CFG+'!A2:B'),
     ]);
     const loaded=[];
     (iR.values||[]).filter(r=>r[0]&&r[4]).forEach(r=>loaded.push({id:Number(r[0]),type:'income',date:r[1]||'',desc:r[2]||'',source:r[3]||'Other',amount:parseFloat(r[4])||0,notes:r[5]||'',createdBy:r[6]||'',createdAt:r[7]||''}));
