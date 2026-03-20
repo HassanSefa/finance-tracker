@@ -546,6 +546,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="exp-cat-filter" id="exp-cat-filter"></div>
         <div id="e-list"><div class="empty" style="padding:12px 0"><p>No expenses this month</p></div></div>
       </div>
+    
+      <!-- 3. Log Expense form trigger -->
+      <button class="btn" style="margin-top:4px;" onclick="openSheet('expense')">+ Log Expense</button>
+    </div>
+    
       <!-- 2. From Planner (middle) -->
       <div id="planned-in-exp" class="plan-in-exp" style="display:none;">
         <div class="plan-in-exp-hdr">
@@ -554,9 +559,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
         <div id="planned-in-exp-list"></div>
       </div>
-      <!-- 3. Log Expense form trigger -->
-      <button class="btn" style="margin-top:4px;" onclick="openSheet('expense')">+ Log Expense</button>
-    </div>
+     
 
     <!-- SAVINGS -->
     <div id="tp-savings" class="tp">
