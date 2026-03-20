@@ -353,6 +353,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .inv-badge{display:inline-block;background:var(--purl);color:var(--purple);border-radius:99px;padding:1px 7px;font-size:10px;font-weight:600;margin-left:4px;}
 
 @keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── BOTTOM SHEET FORMS ── */
+.fab{position:fixed;bottom:24px;right:20px;z-index:150;width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.22);display:none;align-items:center;justify-content:center;font-size:22px;transition:transform .15s,opacity .15s;}
+.fab:active{transform:scale(.92);}
+.fab.show{display:flex;}
+.fab.green{background:var(--green);}
+.fab.red{background:var(--red);}
+.fab.teal{background:var(--teal);}
+.fab.blue{background:var(--blue);}
+.fab.accent{background:var(--accent);}
+
+.bsheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:none;align-items:flex-end;justify-content:center;}
+.bsheet-overlay.show{display:flex;}
+.bsheet{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:0 0 32px;box-shadow:0 -4px 32px rgba(0,0,0,.15);transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);max-height:92vh;overflow-y:auto;}
+.bsheet-overlay.show .bsheet{transform:translateY(0);}
+.bsheet-handle{width:40px;height:4px;border-radius:99px;background:var(--border);margin:12px auto 0;}
+.bsheet-title{font-family:'Playfair Display',serif;font-size:18px;padding:14px 20px 0;margin-bottom:4px;}
+.bsheet-body{padding:0 20px 0;}
+.bsheet-body .fg{margin-bottom:12px;}
+.bsheet-body .fg:first-child{margin-top:12px;}
+
 </style>
 </head>
 <body>
@@ -484,19 +505,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="st" style="margin-bottom:12px;font-size:14px;">💚 This Month's Income</div>
         <div id="i-list"><div class="empty" style="padding:12px 0"><p>No income this month</p></div></div>
       </div>
-      <div class="fc">
-        <div class="ftitle">💰 Log Income</div>
-        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="i-desc" placeholder="e.g. Monthly salary..."></div>
-        <div class="frow">
-          <div class="fg"><label class="fl">Source</label><select class="fs" id="i-src"></select></div>
-          <div class="fg"><label class="fl">Month & Year</label><input type="month" class="fi" id="i-date"></div>
-        </div>
-        <div class="fg"><label class="fl">Amount (<span class="csym">K</span>)</label>
-          <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="i-amt" placeholder="0.00" min="0" step="0.01"></div>
-        </div>
-        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="i-notes" placeholder="Any notes..."></div>
-        <button class="btn gb" onclick="logIncome()">+ Add Income</button>
-      </div>
+      <button class="btn gb" style="margin-top:4px;" onclick="openSheet('income')">+ Log Income</button>
     </div>
 
     <!-- EXPENSES -->
@@ -545,20 +554,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
         <div id="planned-in-exp-list"></div>
       </div>
-      <!-- 3. Log Expense form (bottom) -->
-      <div class="fc">
-        <div class="ftitle">🧾 Log Expense</div>
-        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="e-desc" placeholder="e.g. Groceries at Shoprite..."></div>
-        <div class="frow">
-          <div class="fg"><label class="fl">Category</label><select class="fs" id="e-cat"></select></div>
-          <div class="fg"><label class="fl">Month & Year</label><input type="month" class="fi" id="e-date"></div>
-        </div>
-        <div class="fg"><label class="fl">Amount (<span class="csym">K</span>)</label>
-          <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="e-amt" placeholder="0.00" min="0" step="0.01"></div>
-        </div>
-        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="e-notes" placeholder="Any notes..."></div>
-        <button class="btn" onclick="logExpense()">+ Add Expense</button>
-      </div>
+      <!-- 3. Log Expense form trigger -->
+      <button class="btn" style="margin-top:4px;" onclick="openSheet('expense')">+ Log Expense</button>
     </div>
 
     <!-- SAVINGS -->
@@ -585,15 +582,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="card" style="grid-column:1/-1;"><div class="ci">📊</div><div class="cl">Savings Rate (Savings + Investments ÷ Income)</div><div class="cv gold" id="sav-rate">0%</div></div>
       </div>
 
-       <!-- From Savings Planner section -->
-      <div id="planned-in-sav" class="plan-in-exp" style="display:none;margin-bottom:16px;">
-        <div class="plan-in-exp-hdr">
-          <div class="st">📅 Planned Savings</div>
-          <span id="planned-in-sav-count" style="font-size:11px;color:var(--text3);"></span>
-        </div>
-        <div id="planned-in-sav-list"></div>
-      </div>
-
       <!-- Savings transaction history table -->
       <div class="sav-history-table">
         <div class="rh" style="padding:12px 14px 8px;">
@@ -615,7 +603,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
       </div>
 
-     
+      <!-- From Savings Planner section -->
+      <div id="planned-in-sav" class="plan-in-exp" style="display:none;margin-bottom:16px;">
+        <div class="plan-in-exp-hdr">
+          <div class="st">📅 Planned Savings</div>
+          <span id="planned-in-sav-count" style="font-size:11px;color:var(--text3);"></span>
+        </div>
+        <div id="planned-in-sav-list"></div>
+      </div>
+
       <!-- Withdrawal history -->
       <div class="withdraw-sec">
         <div class="rh"><div class="st">Withdrawal History</div></div>
@@ -623,37 +619,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
 
       <!-- Log savings / investment -->
-      <div class="fc">
-        <div class="ftitle" id="sv-form-title">🏦 Log Savings</div>
-        <div class="fg"><label class="fl">Type</label>
-          <select class="fs" id="sv-type" onchange="toggleSavingsTypeUI()">
-            <option value="savings">🏦 Savings</option>
-            <option value="investment">📈 Investment</option>
-          </select>
-        </div>
-        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="sv-desc" placeholder="e.g. Monthly savings deposit..."></div>
-        <div class="frow">
-          <div class="fg"><label class="fl">Amount (<span class="csym">K</span>)</label>
-            <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="sv-amt" placeholder="0.00" min="0" step="0.01"></div>
-          </div>
-          <div class="fg"><label class="fl">Month & Year</label><input type="month" class="fi" id="sv-date"></div>
-        </div>
-        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="sv-notes" placeholder="Any notes..."></div>
-        <button class="btn" style="background:var(--teal)" id="sv-submit-btn" onclick="logSavings()">+ Log Savings</button>
-      </div>
-
-      <!-- Log withdrawal -->
-      <div class="fc">
-        <div class="ftitle">💸 Log Withdrawal</div>
-        <div class="fg"><label class="fl">Reason for Withdrawal</label><input type="text" class="fi" id="w-reason" placeholder="e.g. Emergency car repair..."></div>
-        <div class="frow">
-          <div class="fg"><label class="fl">Amount (<span class="csym">K</span>)</label>
-            <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="w-amt" placeholder="0.00" min="0" step="0.01"></div>
-          </div>
-          <div class="fg"><label class="fl">Month & Year</label><input type="month" class="fi" id="w-date"></div>
-        </div>
-        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="w-notes" placeholder="Any additional notes..."></div>
-        <button class="btn" style="background:var(--red)" onclick="logWithdrawal()">− Record Withdrawal</button>
+            <div style="display:flex;gap:10px;margin-top:4px;">
+        <button class="btn tb2" style="flex:1;" onclick="openSheet('savings')">🏦 Log Savings</button>
+        <button class="btn" style="flex:1;background:var(--red);" onclick="openSheet('withdrawal')">💸 Withdrawal</button>
       </div>
     </div>
 
@@ -682,32 +650,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div id="pl-list"><div class="empty"><div class="eico">📅</div><p>No planned expenses yet</p></div></div>
 
       <!-- Add planned item form (bottom) -->
-      <div class="fc" style="margin-top:16px;">
-        <div class="ftitle">📅 Add to Planner</div>
-        <div class="fg"><label class="fl">Type</label>
-          <select class="fs" id="pl-type" onchange="togglePlanTypeUI()">
-            <option value="expense">🧾 Expense</option>
-            <option value="savings">🏦 Savings</option>
-            <option value="investment">📈 Investment</option>
-          </select>
-        </div>
-        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="pl-desc" placeholder="e.g. School fees, Monthly savings..."></div>
-        <div class="frow">
-          <div class="fg" id="pl-cat-group"><label class="fl">Category</label><select class="fs" id="pl-cat"></select></div>
-          <div class="fg"><label class="fl">Month Due</label><input type="month" class="fi" id="pl-date"></div>
-        </div>
-        <div class="fg"><label class="fl">Expected Amount (<span class="csym">K</span>)</label>
-          <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="pl-amt" placeholder="0.00" min="0" step="0.01"></div>
-        </div>
-        <div class="fg"><label class="fl">Recurring</label>
-          <select class="fs" id="pl-recur">
-            <option value="none">One-time only</option>
-            <option value="monthly">Every month</option>
-          </select>
-        </div>
-        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="pl-notes" placeholder="Any notes..."></div>
-        <button class="btn" style="background:var(--blue)" onclick="addPlan()">+ Add to Planner</button>
-      </div>
+            <button class="btn" style="background:var(--blue);margin-top:4px;" onclick="openSheet('planner')">+ Add to Planner</button>
     </div>
 
     <!-- HISTORY -->
@@ -942,7 +885,7 @@ if(!settings.pin) { settings.pin='1234'; localStorage.setItem('hft_cfg',JSON.str
 let curMonth    = new Date().getMonth();
 let curYear     = new Date().getFullYear();
 let adminOpen   = false, pinBuf = '', pendingAction = null;
-let accessToken = null, userEmail = null, offlineMode = false;
+let accessToken = null, userEmail = null, offlineMode = false; // set only after successful Google sign-in
 
 const savePlans= ()=>localStorage.setItem('hft_plans',JSON.stringify(plans));
 const saveTxns = ()=>localStorage.setItem('hft_txns',JSON.stringify(txns));
@@ -1011,19 +954,27 @@ function signIn(){
       if(resp.error){toast('Sign-in failed: '+resp.error,'er');return;}
       accessToken=resp.access_token;
       showLoading('Getting your account info...');
-      fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
-        .then(r=>r.json())
-        .then(info=>{
-          userEmail=info.email||'Google User';
-          localStorage.setItem('hft_email',userEmail);
-          showLoading('Syncing your data from Google Sheets...');
-          setupAndSync();
-        })
-        .catch(()=>{
-          userEmail='Google User';
-          showLoading('Syncing your data from Google Sheets...');
-          setupAndSync();
-        });
+      // Fetch the authenticated user's profile from Google
+      fetch('https://www.googleapis.com/oauth2/v3/userinfo',{
+        headers:{Authorization:'Bearer '+accessToken}
+      })
+      .then(r=>r.json())
+      .then(info=>{
+        // Use the email from the live Google session — this is the signed-in user
+        // Store it so it is used on EVERY transaction created in this session
+        userEmail = info.email;
+        localStorage.setItem('hft_email', userEmail);
+        showLoading('Syncing your data from Google Sheets...');
+        setupAndSync();
+      })
+      .catch(err=>{
+        // userinfo fetch failed (network issue) — block sign-in, don't guess the user
+        console.error('Could not get Google profile:', err);
+        toast('Could not verify your Google account. Please try again.','er');
+        accessToken=null;
+        document.getElementById('loading-screen').style.display='none';
+        document.getElementById('auth-screen').style.display='flex';
+      });
     }
   }).requestAccessToken();
 }
@@ -1385,6 +1336,7 @@ async function logIncome(){
   txns.unshift(t);saveTxns();
   ['i-desc','i-amt','i-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('i-date').value=toMo();
+  _closeBSheet();
   toast('Income added! 💚','ok');
   renderQLists();renderDashboard();
   if(accessToken){setSyncDot('sy');await pushTxns([t]);setSyncDot('on');}
@@ -1409,6 +1361,7 @@ async function logExpense(){
   txns.unshift(t);saveTxns();
   ['e-desc','e-amt','e-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('e-date').value=toMo();
+  _closeBSheet();
   toast('Expense recorded! 🧾','ok');
   renderQLists();renderDashboard();renderSavings();
   if(accessToken){setSyncDot('sy');await pushTxns([t]);setSyncDot('on');}
@@ -1435,6 +1388,7 @@ async function logSavings(){
   txns.unshift(t); saveTxns();
   ['sv-desc','sv-amt','sv-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('sv-date').value=toMo();
+  _closeBSheet();
   toast('Savings logged! 🏦','ok');
   renderSavings(); renderDashboard();
   if(accessToken){setSyncDot('sy');await pushTxns([t]);setSyncDot('on');}
@@ -1471,6 +1425,7 @@ async function logWithdrawal(){
   ['w-reason','w-amt','w-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('w-date').value=toMo();
   document.getElementById('pl-date').value=toMo();
+  _closeBSheet();
   toast('Withdrawal recorded 💸','ok');
   renderSavings();
   if(accessToken){setSyncDot('sy');await pushWithdrawals([w]);setSyncDot('on');}
@@ -2315,6 +2270,7 @@ async function addPlan(){
   plans.unshift(p); savePlans();
   ['pl-desc','pl-amt','pl-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pl-date').value=toMo();
+  _closeBSheet();
   toast('Planned expense added! 📅','ok');
   renderPlanner(); renderPendingBanner();
   if(accessToken){setSyncDot('sy');await pushPlans([p]);setSyncDot('on');}
@@ -2702,8 +2658,154 @@ async function saveEditTxn(id){
 }
 
 
+// ─── BOTTOM SHEET ─────────────────────────────────────────────────────────────
+const SHEETS = ['income','expense','savings','withdrawal','planner'];
+
+function openSheet(type){
+  // Hide all panels, show the requested one
+  SHEETS.forEach(s=>{
+    const el=document.getElementById('bs-'+s);
+    if(el) el.style.display = s===type ? 'block' : 'none';
+  });
+  // Reset date fields to current month each time sheet opens
+  const now=toMo();
+  if(type==='income'    && document.getElementById('i-date'))  document.getElementById('i-date').value=now;
+  if(type==='expense'   && document.getElementById('e-date'))  document.getElementById('e-date').value=now;
+  if(type==='savings'   && document.getElementById('sv-date')) document.getElementById('sv-date').value=now;
+  if(type==='withdrawal'&& document.getElementById('w-date'))  document.getElementById('w-date').value=now;
+  if(type==='planner'   && document.getElementById('pl-date')) document.getElementById('pl-date').value=now;
+  // Show overlay
+  const overlay=document.getElementById('bsheet-overlay');
+  overlay.classList.add('show');
+  // Prevent body scroll
+  document.body.style.overflow='hidden';
+}
+
+function closeBSheet(e){
+  // Close if clicking the dark backdrop (not the sheet itself)
+  if(e && e.target !== document.getElementById('bsheet-overlay')) return;
+  _closeBSheet();
+}
+
+function _closeBSheet(){
+  document.getElementById('bsheet-overlay').classList.remove('show');
+  document.body.style.overflow='';
+}
+
+
 // ─── TOAST ─────────────────────────────────────────────────────────────────
 function toast(msg,type){const e=document.getElementById('toast');e.textContent=msg;e.className='toast '+(type==='ok'?'ok':type==='er'?'er':'')+' show';setTimeout(()=>e.classList.remove('show'),2800);}
 </script>
+
+<!-- ── BOTTOM SHEET FORMS ── -->
+<div class="bsheet-overlay" id="bsheet-overlay" onclick="closeBSheet(event)">
+  <div class="bsheet" id="bsheet">
+    <div class="bsheet-handle"></div>
+
+    <!-- INCOME SHEET -->
+    <div id="bs-income" style="display:none;">
+      <div class="bsheet-title">💰 Log Income</div>
+      <div class="bsheet-body">
+        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="i-desc" placeholder="e.g. Monthly salary..."></div>
+        <div class="frow">
+          <div class="fg"><label class="fl">Source</label><select class="fs" id="i-src"></select></div>
+          <div class="fg"><label class="fl">Month & Year</label><input type="month" class="fi" id="i-date"></div>
+        </div>
+        <div class="fg"><label class="fl">Amount (<span class="csym">K</span>)</label>
+          <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="i-amt" placeholder="0.00" min="0" step="0.01"></div>
+        </div>
+        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="i-notes" placeholder="Any notes..."></div>
+        <button class="btn gb" onclick="logIncome()">+ Add Income</button>
+      </div>
+    </div>
+
+    <!-- EXPENSE SHEET -->
+    <div id="bs-expense" style="display:none;">
+      <div class="bsheet-title">🧾 Log Expense</div>
+      <div class="bsheet-body">
+        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="e-desc" placeholder="e.g. Groceries at Shoprite..."></div>
+        <div class="frow">
+          <div class="fg"><label class="fl">Category</label><select class="fs" id="e-cat"></select></div>
+          <div class="fg"><label class="fl">Month & Year</label><input type="month" class="fi" id="e-date"></div>
+        </div>
+        <div class="fg"><label class="fl">Amount (<span class="csym">K</span>)</label>
+          <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="e-amt" placeholder="0.00" min="0" step="0.01"></div>
+        </div>
+        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="e-notes" placeholder="Any notes..."></div>
+        <button class="btn" onclick="logExpense()">+ Add Expense</button>
+      </div>
+    </div>
+
+    <!-- SAVINGS SHEET -->
+    <div id="bs-savings" style="display:none;">
+      <div class="bsheet-title" id="sv-form-title">🏦 Log Savings</div>
+      <div class="bsheet-body">
+        <div class="fg"><label class="fl">Type</label>
+          <select class="fs" id="sv-type" onchange="toggleSavingsTypeUI()">
+            <option value="savings">🏦 Savings</option>
+            <option value="investment">📈 Investment</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="sv-desc" placeholder="e.g. Monthly savings deposit..."></div>
+        <div class="frow">
+          <div class="fg"><label class="fl">Amount (<span class="csym">K</span>)</label>
+            <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="sv-amt" placeholder="0.00" min="0" step="0.01"></div>
+          </div>
+          <div class="fg"><label class="fl">Month & Year</label><input type="month" class="fi" id="sv-date"></div>
+        </div>
+        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="sv-notes" placeholder="Any notes..."></div>
+        <button class="btn tb2" id="sv-submit-btn" onclick="logSavings()">+ Log Savings</button>
+      </div>
+    </div>
+
+    <!-- WITHDRAWAL SHEET -->
+    <div id="bs-withdrawal" style="display:none;">
+      <div class="bsheet-title">💸 Log Withdrawal</div>
+      <div class="bsheet-body">
+        <div class="fg"><label class="fl">Reason for Withdrawal</label><input type="text" class="fi" id="w-reason" placeholder="e.g. Emergency car repair..."></div>
+        <div class="frow">
+          <div class="fg"><label class="fl">Amount (<span class="csym">K</span>)</label>
+            <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="w-amt" placeholder="0.00" min="0" step="0.01"></div>
+          </div>
+          <div class="fg"><label class="fl">Month & Year</label><input type="month" class="fi" id="w-date"></div>
+        </div>
+        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="w-notes" placeholder="Any additional notes..."></div>
+        <button class="btn" style="background:var(--red);" onclick="logWithdrawal()">− Record Withdrawal</button>
+      </div>
+    </div>
+
+    <!-- PLANNER SHEET -->
+    <div id="bs-planner" style="display:none;">
+      <div class="bsheet-title">📅 Add to Planner</div>
+      <div class="bsheet-body">
+        <div class="fg"><label class="fl">Type</label>
+          <select class="fs" id="pl-type" onchange="togglePlanTypeUI()">
+            <option value="expense">🧾 Expense</option>
+            <option value="savings">🏦 Savings</option>
+            <option value="investment">📈 Investment</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="pl-desc" placeholder="e.g. School fees, Monthly savings..."></div>
+        <div class="frow">
+          <div class="fg" id="pl-cat-group"><label class="fl">Category</label><select class="fs" id="pl-cat"></select></div>
+          <div class="fg"><label class="fl">Month Due</label><input type="month" class="fi" id="pl-date"></div>
+        </div>
+        <div class="fg"><label class="fl">Expected Amount (<span class="csym">K</span>)</label>
+          <div class="cw"><span class="cp csym-p">K</span><input type="number" class="fi" id="pl-amt" placeholder="0.00" min="0" step="0.01"></div>
+        </div>
+        <div class="fg"><label class="fl">Recurring</label>
+          <select class="fs" id="pl-recur">
+            <option value="none">One-time only</option>
+            <option value="monthly">Every month</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="pl-notes" placeholder="Any notes..."></div>
+        <button class="btn" style="background:var(--blue);" onclick="addPlan()">+ Add to Planner</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 </body>
 </html>
