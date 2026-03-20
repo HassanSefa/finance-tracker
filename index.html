@@ -325,17 +325,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sav-mo-filter{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
 .sav-mo-filter .fs{flex:1;}
 .sav-history-table{background:var(--surface);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:16px;}
-.sav-table-hdr{display:grid;grid-template-columns:1fr 100px 100px;gap:0;padding:9px 14px;background:var(--surface2);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);}
-.sav-table-row{display:grid;grid-template-columns:1fr 100px 100px;gap:0;padding:11px 14px;border-top:1px solid var(--border);align-items:center;}
+/* Scrollable wrapper for 4-col table on mobile */
+.sav-tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.sav-tbl-scroll::-webkit-scrollbar{height:3px;}
+.sav-tbl-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+.sav-table-hdr{display:grid;grid-template-columns:minmax(110px,1fr) 80px 80px 80px;gap:0;padding:9px 14px;background:var(--surface2);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);min-width:380px;}
+.sav-table-row{display:grid;grid-template-columns:minmax(110px,1fr) 80px 80px 80px;gap:0;padding:11px 14px;border-top:1px solid var(--border);align-items:center;min-width:380px;}
 .sav-table-row:hover{background:var(--surface2);}
 .sav-table-desc{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sav-table-meta{font-size:11px;color:var(--text3);margin-top:2px;}
-.sav-table-amt{font-size:13px;font-weight:700;text-align:right;}
+.sav-table-amt{font-size:12px;font-weight:700;text-align:right;}
 .sav-table-amt.planned{color:var(--text3);}
 .sav-table-amt.logged{color:var(--teal);}
 .sav-table-amt.empty{color:var(--border);font-weight:400;}
-.sav-table-footer{display:grid;grid-template-columns:1fr 100px 100px;gap:0;padding:10px 14px;background:var(--surface2);border-top:2px solid var(--border);}
-.sav-table-footer span{font-size:13px;font-weight:700;}
+.sav-table-footer{display:grid;grid-template-columns:minmax(110px,1fr) 80px 80px 80px;gap:0;padding:10px 14px;background:var(--surface2);border-top:2px solid var(--border);min-width:380px;}
+.sav-table-footer span{font-size:12px;font-weight:700;}
 .sav-table-footer .lbl{color:var(--text2);}
 .sav-table-footer .planned-total{color:var(--text3);text-align:right;}
 .sav-table-footer .logged-total{color:var(--teal);text-align:right;}
@@ -346,30 +350,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* INVESTMENTS */
 .inv-color{color:#7c3aed;}
-.sav-table-hdr-inv{grid-template-columns:1fr 90px 90px 90px!important;}
-.sav-table-row-inv{grid-template-columns:1fr 90px 90px 90px!important;}
-.sav-table-footer-inv{grid-template-columns:1fr 90px 90px 90px!important;}
+.sav-table-hdr-inv{grid-template-columns:minmax(110px,1fr) 80px 80px 80px!important;min-width:370px;}
+.sav-table-row-inv{grid-template-columns:minmax(110px,1fr) 80px 80px 80px!important;min-width:370px;}
+.sav-table-footer-inv{grid-template-columns:minmax(110px,1fr) 80px 80px 80px!important;min-width:370px;}
 .sav-table-amt.invest{color:var(--purple);}
 .inv-badge{display:inline-block;background:var(--purl);color:var(--purple);border-radius:99px;padding:1px 7px;font-size:10px;font-weight:600;margin-left:4px;}
 
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ── BOTTOM SHEET FORMS ── */
-
-  /* SAVINGS HISTORY TABLE — mobile fix */
-.sav-history-table{overflow-x:auto;}
-.sav-hist-tbl{width:100%;border-collapse:collapse;font-size:12px;}
-.sav-hist-tbl th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);padding:6px 8px;text-align:right;white-space:nowrap;}
-.sav-hist-tbl th:first-child{text-align:left;}
-.sav-hist-tbl td{padding:10px 8px;border-top:1px solid var(--border);vertical-align:middle;text-align:right;}
-.sav-hist-tbl td:first-child{text-align:left;}
-.sav-hist-tbl .desc-cell{font-size:13px;font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.sav-hist-tbl .sub-cell{font-size:11px;color:var(--text3);margin-top:2px;}
-.sav-hist-tbl .amt-pos{color:var(--teal);font-weight:700;}
-.sav-hist-tbl .amt-neg{color:var(--red);font-weight:700;}
-.sav-hist-tbl .amt-dash{color:var(--text3);}
-.sav-hist-tbl tfoot td{font-weight:700;font-size:13px;padding:10px 8px;border-top:2px solid var(--border);}
-  
 .fab{position:fixed;bottom:24px;right:20px;z-index:150;width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.22);display:none;align-items:center;justify-content:center;font-size:22px;transition:transform .15s,opacity .15s;}
 .fab:active{transform:scale(.92);}
 .fab.show{display:flex;}
@@ -561,11 +550,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="exp-cat-filter" id="exp-cat-filter"></div>
         <div id="e-list"><div class="empty" style="padding:12px 0"><p>No expenses this month</p></div></div>
       </div>
-    
-      <!-- 3. Log Expense form trigger -->
-      <button class="btn" style="margin-top:4px;" onclick="openSheet('expense')">+ Log Expense</button>
-    </div>
-    
       <!-- 2. From Planner (middle) -->
       <div id="planned-in-exp" class="plan-in-exp" style="display:none;">
         <div class="plan-in-exp-hdr">
@@ -574,7 +558,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
         <div id="planned-in-exp-list"></div>
       </div>
-     
+      <!-- 3. Log Expense form trigger -->
+      <button class="btn" style="margin-top:4px;" onclick="openSheet('expense')">+ Log Expense</button>
+    </div>
 
     <!-- SAVINGS -->
     <div id="tp-savings" class="tp">
@@ -606,18 +592,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="st" style="font-size:14px;">🏦 Savings History</div>
           <span id="sav-period-label" style="font-size:11px;color:var(--text3);"></span>
         </div>
-        <div class="sav-table-hdr sav-table-hdr-inv">
-          <span>Description</span>
-          <span style="text-align:right;">Planned</span>
-          <span style="text-align:right;">Savings</span>
-          <span style="text-align:right;">Investment</span>
-        </div>
-        <div id="sav-history-rows"><div class="empty" style="padding:24px"><p>No savings records</p></div></div>
-        <div class="sav-table-footer sav-table-footer-inv" id="sav-table-footer" style="display:none;">
-          <span class="lbl">Total</span>
-          <span class="planned-total" id="sav-footer-planned">K 0.00</span>
-          <span class="logged-total" id="sav-footer-logged">K 0.00</span>
-          <span class="sav-table-amt invest" id="sav-footer-invest">K 0.00</span>
+        <div class="sav-tbl-scroll">
+          <div class="sav-table-hdr sav-table-hdr-inv">
+            <span>Description</span>
+            <span style="text-align:right;">Planned</span>
+            <span style="text-align:right;">Savings</span>
+            <span style="text-align:right;">Invest</span>
+          </div>
+          <div id="sav-history-rows"><div class="empty" style="padding:24px"><p>No savings records</p></div></div>
+          <div class="sav-table-footer sav-table-footer-inv" id="sav-table-footer" style="display:none;">
+            <span class="lbl">Total</span>
+            <span class="planned-total" id="sav-footer-planned">K 0.00</span>
+            <span class="logged-total" id="sav-footer-logged">K 0.00</span>
+            <span class="sav-table-amt invest" id="sav-footer-invest">K 0.00</span>
+          </div>
         </div>
       </div>
 
