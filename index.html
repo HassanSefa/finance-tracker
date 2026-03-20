@@ -1101,17 +1101,29 @@ async function ensureTabs(){
     {name:TAB_EXP,headers:['ID','Date','Description','Category','Amount','Notes','CreatedBy','CreatedAt']},
     {name:TAB_SAV,headers:['ID','Date','Description','Amount','Notes','CreatedBy','CreatedAt']},
     {name:TAB_WD, headers:['ID','Date','Reason','Amount','Notes','CreatedBy','CreatedAt']},
-    {name:TAB_PLN, headers:['ID','Date','Description','Category','Amount','Recur','Notes','Done','CreatedBy','CreatedAt','PlanType']},
+    {name:TAB_PLN,headers:['ID','Date','Description','Category','Amount','Recur','Notes','Done','CreatedBy','CreatedAt','PlanType']},
     {name:TAB_CFG,headers:['Key','Value']},
   ];
   for(const td of tabDefs){
     if(!have.includes(td.name)){
+      // Create tab and write header
       try{
         await shReq(':batchUpdate','POST',{requests:[{addSheet:{properties:{title:td.name}}}]});
         await sleep(400);
         await shReq('/values/'+encodeURIComponent(td.name)+'!A1:append?valueInputOption=RAW','POST',{values:[td.headers]});
         await sleep(200);
       }catch(e){console.warn('Could not create tab '+td.name+':',e);}
+    } else {
+      // Tab exists — check and repair header row to make sure it matches expected columns
+      try{
+        const hRes=await shReq('/values/'+encodeURIComponent(td.name)+'!A1:Z1');
+        const existingHeader=(hRes.values||[[]])[0]||[];
+        if(existingHeader.length < td.headers.length){
+          // Header is shorter than expected — update it (happens when new columns added)
+          await shReq('/values/'+encodeURIComponent(td.name)+'!A1?valueInputOption=RAW','PUT',{values:[td.headers]});
+          await sleep(200);
+        }
+      }catch(e){console.warn('Could not verify header for '+td.name+':',e);}
     }
   }
 }
@@ -1126,7 +1138,7 @@ async function loadFromSheets(){
       safeGet(TAB_EXP+'!A2:H'),
       safeGet(TAB_SAV+'!A2:G'),
       safeGet(TAB_WD+'!A2:G'),
-      safeGet(TAB_PLN+'!A2:J'),
+      safeGet(TAB_PLN+'!A2:K'),
       safeGet(TAB_CFG+'!A2:B'),
     ]);
 
@@ -1180,20 +1192,24 @@ async function loadFromSheets(){
       pLoaded.push({id:Number(r[0]),date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,recur:r[5]||'none',notes:r[6]||'',done:isDone,linkedTxnId,createdBy:r[8]||'',createdAt:r[9]||'',planType:r[10]||'expense'});
     });
 
-    // ── Merge sheet data with any local-only entries ─────────────────────────
+    // ── Merge: sheet is always authoritative.
+    // Local-only = items whose ID is not in the sheet (created offline since last sync).
+    // Sheet wins for everything else — this ensures fresh devices always get full data.
     const shIds=new Set(loaded.map(t=>t.id));
     const localOnly=txns.filter(t=>!shIds.has(t.id));
     txns=[...loaded,...localOnly];
+
     const wShIds=new Set(wLoaded.map(w=>w.id));
     const wLocalOnly=withdrawals.filter(w=>!wShIds.has(w.id));
     withdrawals=[...wLoaded,...wLocalOnly];
     saveTxns();saveWds();
+
     const pShIds=new Set(pLoaded.map(p=>p.id));
     const pLocalOnly=plans.filter(p=>!pShIds.has(p.id));
     plans=[...pLoaded,...pLocalOnly];
     savePlans();
 
-    // Push any local-only entries up to sheet
+    // Push any local-only entries up to sheet (items created offline)
     if(localOnly.length) await pushTxns(localOnly);
     if(wLocalOnly.length) await pushWithdrawals(wLocalOnly);
     if(pLocalOnly.length) await pushPlans(pLocalOnly);
@@ -1227,10 +1243,12 @@ async function pushTxns(list){
   const inc=list.filter(t=>t.type==='income').map(t=>[t.id,t.date,t.desc,t.source,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
   const exp=list.filter(t=>t.type==='expense').map(t=>[t.id,t.date,t.desc,t.cat,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
   const sav=list.filter(t=>t.type==='savings').map(t=>[t.id,t.date,t.desc,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
+  // INSERT_ROWS ensures new data always appends at the bottom, never fills gaps from cleared rows
+  const q='?valueInputOption=RAW&insertDataOption=INSERT_ROWS';
   try{
-    if(inc.length)await shReq('/values/'+TAB_INC+'!A:H:append?valueInputOption=RAW','POST',{values:inc});
-    if(exp.length)await shReq('/values/'+TAB_EXP+'!A:H:append?valueInputOption=RAW','POST',{values:exp});
-    if(sav.length)await shReq('/values/'+TAB_SAV+'!A:G:append?valueInputOption=RAW','POST',{values:sav});
+    if(inc.length)await shReq('/values/'+encodeURIComponent(TAB_INC)+'!A:H:append'+q,'POST',{values:inc});
+    if(exp.length)await shReq('/values/'+encodeURIComponent(TAB_EXP)+'!A:H:append'+q,'POST',{values:exp});
+    if(sav.length)await shReq('/values/'+encodeURIComponent(TAB_SAV)+'!A:G:append'+q,'POST',{values:sav});
   }catch(e){console.warn('Push txns:',e);}
 }
 
@@ -1240,7 +1258,7 @@ async function pushPlans(list){
   const rows=list.map(p=>[p.id,p.date,p.desc,p.cat,p.amount,p.recur,p.notes||'',
     p.done?(p.linkedTxnId?'true:'+p.linkedTxnId:'true'):'false',
     p.createdBy||'',p.createdAt||'',p.planType||'expense']);
-  try{await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:J:append?valueInputOption=RAW','POST',{values:rows});}
+  try{await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:K:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS','POST',{values:rows});}
   catch(e){console.warn('Push plans:',e);}
 }
 
@@ -1252,7 +1270,7 @@ async function updatePlanInSheet(plan){
     const idx=rows.findIndex(r=>r[0]==String(plan.id));
     const doneStr=plan.done?(plan.linkedTxnId?'true:'+plan.linkedTxnId:'true'):'false';
     if(idx>=0){
-      await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A'+(idx+1)+':J'+(idx+1)+'?valueInputOption=RAW','PUT',
+      await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A'+(idx+1)+':K'+(idx+1)+'?valueInputOption=RAW','PUT',
         {values:[[plan.id,plan.date,plan.desc,plan.cat,plan.amount,plan.recur,plan.notes||'',doneStr,plan.createdBy||'',plan.createdAt||'',plan.planType||'expense']]});
     }
   }catch(e){console.warn('Update plan sheet:',e);}
@@ -1264,14 +1282,14 @@ async function deletePlanFromSheet(plan){
     const res=await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:A');
     const rows=res.values||[];
     const idx=rows.findIndex(r=>r[0]==String(plan.id));
-    if(idx>=0)await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A'+(idx+1)+':J'+(idx+1)+':clear','POST',{});
+    if(idx>=0)await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A'+(idx+1)+':K'+(idx+1)+':clear','POST',{});
   }catch(e){console.warn('Del plan sheet:',e);}
 }
 
 async function pushWithdrawals(list){
   if(!accessToken||!list.length)return;
   const rows=list.map(w=>[w.id,w.date,w.reason,w.amount,w.notes||'',w.createdBy||'',w.createdAt||'']);
-  try{await shReq('/values/'+TAB_WD+'!A:G:append?valueInputOption=RAW','POST',{values:rows});}
+  try{await shReq('/values/'+encodeURIComponent(TAB_WD)+'!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS','POST',{values:rows});}
   catch(e){console.warn('Push wd:',e);}
 }
 
@@ -1285,20 +1303,22 @@ async function syncConfig(){
     const srcIdx=rows.findIndex(r=>r[0]==='srcs');
     // Update or append
     if(catIdx>=0) await shReq('/values/'+TAB_CFG+'!A'+(catIdx+1)+':B'+(catIdx+1)+'?valueInputOption=RAW','PUT',{values:[['cats',JSON.stringify(cats)]]});
-    else await shReq('/values/'+TAB_CFG+'!A:B:append?valueInputOption=RAW','POST',{values:[['cats',JSON.stringify(cats)]]});
+    else await shReq('/values/'+encodeURIComponent(TAB_CFG)+'!A:B:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS','POST',{values:[['cats',JSON.stringify(cats)]]});
     if(srcIdx>=0) await shReq('/values/'+TAB_CFG+'!A'+(srcIdx+1)+':B'+(srcIdx+1)+'?valueInputOption=RAW','PUT',{values:[['srcs',JSON.stringify(srcs)]]});
-    else await shReq('/values/'+TAB_CFG+'!A:B:append?valueInputOption=RAW','POST',{values:[['srcs',JSON.stringify(srcs)]]});
+    else await shReq('/values/'+encodeURIComponent(TAB_CFG)+'!A:B:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS','POST',{values:[['srcs',JSON.stringify(srcs)]]});
   }catch(e){console.warn('Sync config:',e);}
 }
 
 async function deleteTxnFromSheet(txn){
   if(!accessToken)return;
   const tab=txn.type==='income'?TAB_INC:txn.type==='expense'?TAB_EXP:TAB_SAV;
+  // Income & Expense have 8 cols (A:H), Savings has 7 cols (A:G)
+  const lastCol=txn.type==='savings'?'G':'H';
   try{
     const res=await shReq('/values/'+tab+'!A:A');
     const rows=res.values||[];
     const idx=rows.findIndex(r=>r[0]==String(txn.id));
-    if(idx>=0)await shReq('/values/'+tab+'!A'+(idx+1)+':H'+(idx+1)+':clear','POST',{});
+    if(idx>=0)await shReq('/values/'+tab+'!A'+(idx+1)+':'+lastCol+(idx+1)+':clear','POST',{});
   }catch(e){console.warn('Del txn sheet:',e);}
 }
 
