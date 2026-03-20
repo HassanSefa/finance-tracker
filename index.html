@@ -355,6 +355,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ── BOTTOM SHEET FORMS ── */
+
+  /* SAVINGS HISTORY TABLE — mobile fix */
+.sav-history-table{overflow-x:auto;}
+.sav-hist-tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.sav-hist-tbl th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);padding:6px 8px;text-align:right;white-space:nowrap;}
+.sav-hist-tbl th:first-child{text-align:left;}
+.sav-hist-tbl td{padding:10px 8px;border-top:1px solid var(--border);vertical-align:middle;text-align:right;}
+.sav-hist-tbl td:first-child{text-align:left;}
+.sav-hist-tbl .desc-cell{font-size:13px;font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sav-hist-tbl .sub-cell{font-size:11px;color:var(--text3);margin-top:2px;}
+.sav-hist-tbl .amt-pos{color:var(--teal);font-weight:700;}
+.sav-hist-tbl .amt-neg{color:var(--red);font-weight:700;}
+.sav-hist-tbl .amt-dash{color:var(--text3);}
+.sav-hist-tbl tfoot td{font-weight:700;font-size:13px;padding:10px 8px;border-top:2px solid var(--border);}
+  
 .fab{position:fixed;bottom:24px;right:20px;z-index:150;width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.22);display:none;align-items:center;justify-content:center;font-size:22px;transition:transform .15s,opacity .15s;}
 .fab:active{transform:scale(.92);}
 .fab.show{display:flex;}
