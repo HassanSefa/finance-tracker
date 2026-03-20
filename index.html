@@ -585,6 +585,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="card" style="grid-column:1/-1;"><div class="ci">📊</div><div class="cl">Savings Rate (Savings + Investments ÷ Income)</div><div class="cv gold" id="sav-rate">0%</div></div>
       </div>
 
+       <!-- From Savings Planner section -->
+      <div id="planned-in-sav" class="plan-in-exp" style="display:none;margin-bottom:16px;">
+        <div class="plan-in-exp-hdr">
+          <div class="st">📅 Planned Savings</div>
+          <span id="planned-in-sav-count" style="font-size:11px;color:var(--text3);"></span>
+        </div>
+        <div id="planned-in-sav-list"></div>
+      </div>
+
       <!-- Savings transaction history table -->
       <div class="sav-history-table">
         <div class="rh" style="padding:12px 14px 8px;">
@@ -606,15 +615,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
       </div>
 
-      <!-- From Savings Planner section -->
-      <div id="planned-in-sav" class="plan-in-exp" style="display:none;margin-bottom:16px;">
-        <div class="plan-in-exp-hdr">
-          <div class="st">📅 Planned Savings</div>
-          <span id="planned-in-sav-count" style="font-size:11px;color:var(--text3);"></span>
-        </div>
-        <div id="planned-in-sav-list"></div>
-      </div>
-
+     
       <!-- Withdrawal history -->
       <div class="withdraw-sec">
         <div class="rh"><div class="st">Withdrawal History</div></div>
