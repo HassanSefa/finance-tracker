@@ -717,6 +717,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="srow" style="border:none;padding-bottom:0">
             <div><div class="slabel">Last synced</div><div class="ssub" id="a-lastsync">Never</div></div>
             <button class="sbtn" onclick="manualSync()">Sync Now</button>
+            <button class="sbtn" style="background:var(--blue);margin-top:8px;" onclick="runManualDedup()">🧹 Remove Duplicates</button>
           </div>
         </div>
 
@@ -1003,6 +1004,12 @@ async function setupAndSync(){
     console.warn('Tab setup failed, trying sync anyway:',e);
   }
   try{
+    showLoading('Checking for duplicate entries...');
+    await deduplicateSheetTabs();
+  }catch(e){
+    console.warn('Dedup failed, continuing anyway:',e);
+  }
+  try{
     showLoading('Loading your latest data...');
     await loadFromSheets(); // loadFromSheets calls showMain() when done
   }catch(e){
@@ -1094,6 +1101,68 @@ async function ensureTabs(){
       }catch(e){console.warn('Could not verify header for '+td.name+':',e);}
     }
   }
+}
+
+async function deduplicateSheetTabs(){
+  // For each data tab, read all rows, find duplicate IDs, delete the extras
+  // Keeps the FIRST occurrence of each ID and removes subsequent duplicates
+  const tabCols = [
+    {tab:TAB_INC, cols:'A:H'},
+    {tab:TAB_EXP, cols:'A:H'},
+    {tab:TAB_SAV, cols:'A:G'},
+    {tab:TAB_WD,  cols:'A:G'},
+    {tab:TAB_PLN, cols:'A:K'},
+  ];
+
+  // Get sheetIds for deleteDimension
+  let sheetMeta = {};
+  try{
+    const meta = await shReq('');
+    meta.sheets.forEach(s=>{ sheetMeta[s.properties.title]=s.properties.sheetId; });
+  }catch(e){ console.warn('Dedup: could not get metadata',e); return; }
+
+  let totalRemoved = 0;
+
+  for(const {tab} of tabCols){
+    try{
+      const res = await shReq('/values/'+encodeURIComponent(tab)+'!A:A');
+      const rows = res.values || [];
+      if(rows.length <= 2) continue; // header + 0 or 1 data row — nothing to dedup
+
+      const seen = new Set();
+      const rowsToDelete = []; // 0-indexed sheet rows to delete
+
+      rows.forEach((row, i) => {
+        if(i === 0) return; // skip header row
+        const id = row[0] ? String(row[0]).trim() : '';
+        if(!id) return; // skip empty rows
+        if(seen.has(id)){
+          rowsToDelete.push(i); // duplicate — mark for deletion
+        } else {
+          seen.add(id);
+        }
+      });
+
+      if(rowsToDelete.length === 0) continue;
+
+      const sheetId = sheetMeta[tab];
+      if(sheetId === undefined) continue;
+
+      // Delete from bottom up so indices don't shift
+      rowsToDelete.reverse();
+      for(let i = 0; i < rowsToDelete.length; i += 10){
+        const batch = rowsToDelete.slice(i, i+10);
+        await shReq(':batchUpdate','POST',{requests: batch.map(rowIdx=>({
+          deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:rowIdx,endIndex:rowIdx+1}}
+        }))});
+      }
+      totalRemoved += rowsToDelete.length;
+      console.log(`Dedup ${tab}: removed ${rowsToDelete.length} duplicate rows`);
+    }catch(e){
+      console.warn('Dedup failed for tab '+tab+':',e);
+    }
+  }
+  return totalRemoved;
 }
 
 let _syncInProgress = false;
@@ -1317,6 +1386,26 @@ async function deleteWdFromSheet(wd){
 async function manualSync(){
   if(!accessToken){toast('Not signed in','er');return;}
   await loadFromSheets();
+}
+
+async function runManualDedup(){
+  if(!accessToken){toast('Not signed in','er');return;}
+  toast('Scanning for duplicates...','');
+  setSyncDot('sy');
+  try{
+    const removed = await deduplicateSheetTabs();
+    setSyncDot('on');
+    if(removed > 0){
+      toast(removed+' duplicate row'+(removed===1?'':'s')+' removed ✅','ok');
+      // Re-sync to reload clean data
+      await loadFromSheets();
+    } else {
+      toast('No duplicates found ✅','ok');
+    }
+  }catch(e){
+    setSyncDot('er');
+    toast('Dedup failed: '+e.message,'er');
+  }
 }
 
 // ─── DROPDOWNS ─────────────────────────────────────────────────────────────
