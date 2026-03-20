@@ -343,6 +343,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sav-log-btn:hover{opacity:.85;}
 .sav-log-btn.done-btn{background:var(--gl);color:var(--green);}
 
+
+/* INVESTMENTS */
+.inv-color{color:#7c3aed;}
+.sav-table-hdr-inv{grid-template-columns:1fr 90px 90px 90px!important;}
+.sav-table-row-inv{grid-template-columns:1fr 90px 90px 90px!important;}
+.sav-table-footer-inv{grid-template-columns:1fr 90px 90px 90px!important;}
+.sav-table-amt.invest{color:var(--purple);}
+.inv-badge{display:inline-block;background:var(--purl);color:var(--purple);border-radius:99px;padding:1px 7px;font-size:10px;font-weight:600;margin-left:4px;}
+
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -358,6 +368,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </button>
   <button class="btn-skip" onclick="useOffline()">Continue without signing in (offline)</button>
   <div class="auth-note">Your data is stored in your own Google Sheet and never shared with anyone else.</div>
+</div>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);gap:20px;">
+  <div style="font-size:52px;">🏠</div>
+  <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--text);">Finance <span style="color:var(--accent2);">Tracker</span></div>
+  <div style="width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;"></div>
+  <div id="loading-msg" style="font-size:13px;color:var(--text3);">Loading your data...</div>
 </div>
 
 <!-- MAIN APP -->
@@ -556,14 +574,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,var(--teal),#0d9488);color:#fff;">
-          <div class="cl" style="color:rgba(255,255,255,.75);">Total Savings Balance (All Time)</div>
+          <div class="cl" style="color:rgba(255,255,255,.75);">Total Savings + Investments (All Time)</div>
           <div style="font-family:'Playfair Display',serif;font-size:30px;font-weight:700;line-height:1;" id="sav-balance">K 0.00</div>
-          <div style="font-size:12px;opacity:.75;margin-top:6px;" id="sav-sub">Logged savings minus withdrawals</div>
+          <div style="font-size:12px;opacity:.75;margin-top:6px;" id="sav-sub">Savings + Investments minus withdrawals</div>
         </div>
+        <div class="card"><div class="ci">🏦</div><div class="cl">Logged Savings</div><div class="cv teal" id="sav-month">K 0.00</div></div>
+        <div class="card"><div class="ci">📈</div><div class="cl">Logged Investments</div><div class="cv inv-color" id="sav-invest">K 0.00</div></div>
         <div class="card"><div class="ci">📅</div><div class="cl">Planned This Period</div><div class="cv teal" id="sav-planned">K 0.00</div></div>
-        <div class="card"><div class="ci">✅</div><div class="cl">Logged This Period</div><div class="cv teal" id="sav-month">K 0.00</div></div>
         <div class="card"><div class="ci">➖</div><div class="cl">Withdrawn</div><div class="cv r" id="sav-withdrawn">K 0.00</div></div>
-        <div class="card"><div class="ci">📊</div><div class="cl">Savings Rate</div><div class="cv gold" id="sav-rate">0%</div></div>
+        <div class="card" style="grid-column:1/-1;"><div class="ci">📊</div><div class="cl">Savings Rate (Savings + Investments ÷ Income)</div><div class="cv gold" id="sav-rate">0%</div></div>
       </div>
 
       <!-- Savings transaction history table -->
@@ -572,16 +591,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="st" style="font-size:14px;">🏦 Savings History</div>
           <span id="sav-period-label" style="font-size:11px;color:var(--text3);"></span>
         </div>
-        <div class="sav-table-hdr">
+        <div class="sav-table-hdr sav-table-hdr-inv">
           <span>Description</span>
           <span style="text-align:right;">Planned</span>
-          <span style="text-align:right;">Logged</span>
+          <span style="text-align:right;">Savings</span>
+          <span style="text-align:right;">Investment</span>
         </div>
         <div id="sav-history-rows"><div class="empty" style="padding:24px"><p>No savings records</p></div></div>
-        <div class="sav-table-footer" id="sav-table-footer" style="display:none;">
+        <div class="sav-table-footer sav-table-footer-inv" id="sav-table-footer" style="display:none;">
           <span class="lbl">Total</span>
           <span class="planned-total" id="sav-footer-planned">K 0.00</span>
           <span class="logged-total" id="sav-footer-logged">K 0.00</span>
+          <span class="sav-table-amt invest" id="sav-footer-invest">K 0.00</span>
         </div>
       </div>
 
@@ -600,9 +621,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="withdraw-list" id="w-list"><div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div></div>
       </div>
 
-      <!-- Log savings (new) -->
+      <!-- Log savings / investment -->
       <div class="fc">
-        <div class="ftitle">🏦 Log Savings</div>
+        <div class="ftitle" id="sv-form-title">🏦 Log Savings</div>
+        <div class="fg"><label class="fl">Type</label>
+          <select class="fs" id="sv-type" onchange="toggleSavingsTypeUI()">
+            <option value="savings">🏦 Savings</option>
+            <option value="investment">📈 Investment</option>
+          </select>
+        </div>
         <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="sv-desc" placeholder="e.g. Monthly savings deposit..."></div>
         <div class="frow">
           <div class="fg"><label class="fl">Amount (<span class="csym">K</span>)</label>
@@ -611,7 +638,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="fg"><label class="fl">Month & Year</label><input type="month" class="fi" id="sv-date"></div>
         </div>
         <div class="fg"><label class="fl">Notes (optional)</label><input type="text" class="fi" id="sv-notes" placeholder="Any notes..."></div>
-        <button class="btn" style="background:var(--teal)" onclick="logSavings()">+ Log Savings</button>
+        <button class="btn" style="background:var(--teal)" id="sv-submit-btn" onclick="logSavings()">+ Log Savings</button>
       </div>
 
       <!-- Log withdrawal -->
@@ -658,8 +685,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="ftitle">📅 Add to Planner</div>
         <div class="fg"><label class="fl">Type</label>
           <select class="fs" id="pl-type" onchange="togglePlanTypeUI()">
-            <option value="expense">Expense</option>
-            <option value="savings">Savings</option>
+            <option value="expense">🧾 Expense</option>
+            <option value="savings">🏦 Savings</option>
+            <option value="investment">📈 Investment</option>
           </select>
         </div>
         <div class="fg"><label class="fl">Description</label><input type="text" class="fi" id="pl-desc" placeholder="e.g. School fees, Monthly savings..."></div>
@@ -935,8 +963,28 @@ window.onload=()=>{
   document.getElementById('main-app').style.display='none';
 };
 
+// Auto-sync when app becomes visible again (e.g. switching tabs or waking phone)
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible' && accessToken && !offlineMode){
+    // Only auto-sync if last sync was more than 30 seconds ago
+    const lastSync=localStorage.getItem('hft_last_sync_ts');
+    const now=Date.now();
+    if(!lastSync || now-Number(lastSync) > 30000){
+      loadFromSheets();
+    }
+  }
+});
+
+function showLoading(msg='Loading your data...'){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('loading-screen').style.display='flex';
+  document.getElementById('main-app').style.display='none';
+  document.getElementById('loading-msg').textContent=msg;
+}
+
 function showMain(){
   document.getElementById('auth-screen').style.display='none';
+  document.getElementById('loading-screen').style.display='none';
   document.getElementById('main-app').style.display='flex';
   document.getElementById('main-app').style.flexDirection='column';
   initApp();
@@ -961,19 +1009,18 @@ function signIn(){
     callback:(resp)=>{
       if(resp.error){toast('Sign-in failed: '+resp.error,'er');return;}
       accessToken=resp.access_token;
-      // Get user info then launch app — don't block on sheets setup
+      showLoading('Getting your account info...');
       fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
         .then(r=>r.json())
         .then(info=>{
           userEmail=info.email||'Google User';
           localStorage.setItem('hft_email',userEmail);
-          showMain(); // Show app immediately
-          // Then set up sheets and load data in background
+          showLoading('Syncing your data from Google Sheets...');
           setupAndSync();
         })
         .catch(()=>{
           userEmail='Google User';
-          showMain();
+          showLoading('Syncing your data from Google Sheets...');
           setupAndSync();
         });
     }
@@ -982,16 +1029,20 @@ function signIn(){
 
 async function setupAndSync(){
   try{
+    showLoading('Setting up your Google Sheets...');
     await ensureTabs();
   }catch(e){
     console.warn('Tab setup failed, trying sync anyway:',e);
   }
   try{
-    await loadFromSheets();
+    showLoading('Loading your latest data...');
+    await loadFromSheets(); // loadFromSheets calls showMain() when done
   }catch(e){
     console.warn('Initial sync failed:',e);
+    // If sync fails, show the app anyway with local data
+    showMain();
     setSyncDot('er');
-    showBanner('Could not sync — check your connection','err');
+    showBanner('Could not sync — showing local data. Check your connection.','err');
   }
 }
 
@@ -1086,25 +1137,29 @@ async function loadFromSheets(){
     if(cfgMap['srcs']){try{srcs=JSON.parse(cfgMap['srcs']);}catch(e){}}
     saveCats();saveSrcs();
 
-    // ── Check cleared_at flag — wipe local if sheet was cleared more recently ─
+    // ── Check cleared_at flag — wipe local data that existed BEFORE the clear ─
     const clearedAt = cfgMap['cleared_at'] ? Number(cfgMap['cleared_at']) : 0;
-    const localLastAdded = txns.length>0 ? Math.max(...txns.map(t=>t.id)) : 0;
-    if(clearedAt > 0 && clearedAt >= localLastAdded){
-      txns=[]; withdrawals=[]; plans=[];
-      saveTxns(); saveWds(); savePlans();
-      localStorage.removeItem('hft_last_sync');
+    if(clearedAt > 0){
+      // Only remove local entries whose ID (timestamp) is older than the clear time
+      // Entries added AFTER the clear (id > clearedAt) are kept — they are new data
+      const hadOldData = txns.some(t=>t.id <= clearedAt);
+      if(hadOldData){
+        txns        = txns.filter(t=>t.id > clearedAt);
+        withdrawals = withdrawals.filter(w=>w.id > clearedAt);
+        plans       = plans.filter(p=>p.id > clearedAt);
+        saveTxns(); saveWds(); savePlans();
+      }
     }
     // ── Check cleared_month flags ─────────────────────────────────────────────
     Object.keys(cfgMap).forEach(key=>{
       if(key.startsWith('cleared_month_')){
-        const clearedMo=key.replace('cleared_month_',''); // e.g. '2026-03'
+        const clearedMo=key.replace('cleared_month_','');
         const moTs=Number(cfgMap[key]);
-        const localMoLastAdded=txns.filter(t=>(t.date||'').startsWith(clearedMo));
-        const localMoMax=localMoLastAdded.length>0?Math.max(...localMoLastAdded.map(t=>t.id)):0;
-        if(moTs>0 && moTs>=localMoMax){
-          txns=txns.filter(t=>!(t.date||'').startsWith(clearedMo));
-          withdrawals=withdrawals.filter(w=>!(w.date||'').startsWith(clearedMo));
-          plans=plans.filter(p=>!(p.date||'').startsWith(clearedMo));
+        if(moTs>0){
+          // Only remove entries for that month whose ID predates the clear timestamp
+          txns=txns.filter(t=>!((t.date||'').startsWith(clearedMo) && t.id<=moTs));
+          withdrawals=withdrawals.filter(w=>!((w.date||'').startsWith(clearedMo) && w.id<=moTs));
+          plans=plans.filter(p=>!((p.date||'').startsWith(clearedMo) && p.id<=moTs));
           saveTxns(); saveWds(); savePlans();
         }
       }
@@ -1146,13 +1201,24 @@ async function loadFromSheets(){
     setSyncDot('on');
     const now=new Date().toLocaleTimeString();
     localStorage.setItem('hft_last_sync',now);
+    localStorage.setItem('hft_last_sync_ts',String(Date.now()));
     const ls=document.getElementById('a-lastsync');if(ls)ls.textContent=now;
-    rebuildDropdowns(); render(); renderHistory(); populateSavMoFilter(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter(); populateDashFilter(); populateSavMoFilter();
-    showBanner('Synced with Google Sheets ☁️');
+    // If called from loading screen, reveal the app now that data is ready
+    const wasLoading=document.getElementById('loading-screen').style.display!=='none';
+    if(wasLoading) showMain();
+    rebuildDropdowns(); render(); renderHistory(); populateSavMoFilter(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter(); populateDashFilter();
+    if(!wasLoading) showBanner('Synced with Google Sheets ☁️');
   }catch(e){
     setSyncDot('er');
-    showBanner(e.message,'err');
-    toast('Sync failed','er');
+    const wasLoading=document.getElementById('loading-screen').style.display!=='none';
+    if(wasLoading){
+      // Even if sync fails, show the app with whatever local data we have
+      showMain();
+      showBanner('Sync failed — showing local data. Pull down to retry.','err');
+    } else {
+      showBanner(e.message,'err');
+      toast('Sync failed','er');
+    }
   }
 }
 
@@ -1327,7 +1393,16 @@ async function logExpense(){
   if(accessToken){setSyncDot('sy');await pushTxns([t]);setSyncDot('on');}
 }
 
+function toggleSavingsTypeUI(){
+  const type=document.getElementById('sv-type')?document.getElementById('sv-type').value:'savings';
+  const title=document.getElementById('sv-form-title');
+  const btn=document.getElementById('sv-submit-btn');
+  if(title) title.textContent=type==='investment'?'📈 Log Investment':'🏦 Log Savings';
+  if(btn){ btn.textContent=type==='investment'?'+ Log Investment':'+ Log Savings'; btn.style.background=type==='investment'?'var(--purple)':'var(--teal)'; }
+}
+
 async function logSavings(){
+  const svType=document.getElementById('sv-type')?document.getElementById('sv-type').value:'savings';
   const desc=document.getElementById('sv-desc').value.trim();
   const amt =parseFloat(document.getElementById('sv-amt').value);
   const date=document.getElementById('sv-date').value;
@@ -1335,7 +1410,7 @@ async function logSavings(){
   if(!desc) return toast('Please add a description','er');
   if(!date) return toast('Please select a month','er');
   if(!amt||amt<=0) return toast('Please enter a valid amount','er');
-  const t={id:Date.now(),type:'savings',desc,date,amount:amt,notes,createdBy:userEmail||'Offline',createdAt:nowStr()};
+  const t={id:Date.now(),type:'savings',savingsType:svType,desc,date,amount:amt,notes,createdBy:userEmail||'Offline',createdAt:nowStr()};
   txns.unshift(t); saveTxns();
   ['sv-desc','sv-amt','sv-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('sv-date').value=toMo();
@@ -1347,7 +1422,7 @@ async function logSavings(){
 async function quickLogSavingsPlan(planId){
   const p=plans.find(x=>x.id===planId);if(!p) return;
   p.linkedTxnId=Date.now();
-  const t={id:p.linkedTxnId,type:'savings',desc:p.desc,date:p.date,amount:p.amount,notes:p.notes||'',createdBy:userEmail||'Offline',createdAt:nowStr(),fromPlanner:true};
+  const t={id:p.linkedTxnId,type:'savings',savingsType:p.planType==='investment'?'investment':'savings',desc:p.desc,date:p.date,amount:p.amount,notes:p.notes||'',createdBy:userEmail||'Offline',createdAt:nowStr(),fromPlanner:true};
   txns.unshift(t);
   p.done=true;
   saveTxns(); savePlans();
@@ -1359,7 +1434,7 @@ async function quickLogSavingsPlan(planId){
 function togglePlanTypeUI(){
   const type=document.getElementById('pl-type').value;
   const catGroup=document.getElementById('pl-cat-group');
-  if(catGroup) catGroup.style.display=type==='savings'?'none':'';
+  if(catGroup) catGroup.style.display=(type==='savings'||type==='investment')?'none':'';
 }
 
 async function logWithdrawal(){
@@ -1472,7 +1547,8 @@ function renderDashboard(){
 
   const inc=t.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
   const exp=t.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
-  const sav=t.filter(x=>x.type==='savings').reduce((s,x)=>s+x.amount,0);
+  const savAll=txns.filter(x=>x.type==='savings'&&(x.date||'').startsWith(moStr()));
+  const sav=savAll.reduce((s,x)=>s+x.amount,0);
   const wdAmt=wds.reduce((s,w)=>s+w.amount,0);
   const bal=inc-exp;
 
@@ -1694,7 +1770,7 @@ function populateSavMoFilter(){
   const saved=sel.value;
   const mos=new Set();
   txns.filter(x=>x.type==='savings').forEach(t=>{if(t.date)mos.add(t.date.substring(0,7));});
-  plans.filter(p=>p.planType==='savings').forEach(p=>{if(p.date)mos.add(p.date.substring(0,7));});
+  plans.filter(p=>p.planType==='savings'||p.planType==='investment').forEach(p=>{if(p.date)mos.add(p.date.substring(0,7));});
   sel.innerHTML='<option value="current">Current Month</option>'+[...mos].sort().reverse().map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${MOF[parseInt(mo)-1]} ${y}</option>`;}).join('');
   if(saved&&saved!=='current')sel.value=saved;
 }
@@ -1706,27 +1782,30 @@ function renderSavings(){
   const filterMo=moVal==='current'?moStr():moVal;
   const isAllTime=false; // always filter by selected month for this view
 
-  // ── All-time totals for hero balance ──
-  const totalSavLogged=txns.filter(x=>x.type==='savings').reduce((s,x)=>s+x.amount,0);
+  // ── All-time totals (savings type = 'savings', investments = 'investment') ──
+  const allSavTxns=txns.filter(x=>x.type==='savings');
+  const totalSavLogged=allSavTxns.filter(x=>(x.savingsType||'savings')==='savings').reduce((s,x)=>s+x.amount,0);
+  const totalInvLogged=allSavTxns.filter(x=>x.savingsType==='investment').reduce((s,x)=>s+x.amount,0);
   const totalWd=withdrawals.reduce((s,w)=>s+w.amount,0);
-  const balance=Math.max(0,totalSavLogged-totalWd);
+  const balance=Math.max(0,totalSavLogged+totalInvLogged-totalWd);
 
   // ── Period totals ──
-  const periodSavTxns=txns.filter(x=>x.type==='savings'&&(x.date||'').startsWith(filterMo));
-  const periodLogged=periodSavTxns.reduce((s,x)=>s+x.amount,0);
-  const periodPlanned=plans.filter(p=>p.planType==='savings'&&p.date===filterMo).reduce((s,p)=>s+p.amount,0);
+  const periodSavTxns=allSavTxns.filter(x=>(x.date||'').startsWith(filterMo));
+  const periodLogged=periodSavTxns.filter(x=>(x.savingsType||'savings')==='savings').reduce((s,x)=>s+x.amount,0);
+  const periodInvLogged=periodSavTxns.filter(x=>x.savingsType==='investment').reduce((s,x)=>s+x.amount,0);
+  const periodPlanned=plans.filter(p=>(p.planType==='savings'||p.planType==='investment')&&p.date===filterMo).reduce((s,p)=>s+p.amount,0);
   const periodWd=withdrawals.filter(w=>(w.date||'').startsWith(filterMo)).reduce((s,w)=>s+w.amount,0);
 
-  // Savings rate = logged this period / income this period
-  const [fy,fm]=filterMo.split('-').map(Number);
+  // Savings rate = (savings + investments) / income this period
   const moInc=txns.filter(x=>x.type==='income'&&(x.date||'').startsWith(filterMo)).reduce((s,x)=>s+x.amount,0);
-  const rate=moInc>0?Math.round((periodLogged/moInc)*100):0;
+  const rate=moInc>0?Math.round(((periodLogged+periodInvLogged)/moInc)*100):0;
 
   // ── Update cards ──
   document.getElementById('sav-balance').textContent=fmt(balance);
-  document.getElementById('sav-sub').textContent='Total logged '+fmt(totalSavLogged)+' · Withdrawn '+fmt(totalWd);
+  document.getElementById('sav-sub').textContent='Savings '+fmt(totalSavLogged)+' · Investments '+fmt(totalInvLogged)+' · Withdrawn '+fmt(totalWd);
   document.getElementById('sav-planned').textContent=fmt(periodPlanned);
   document.getElementById('sav-month').textContent=fmt(periodLogged);
+  const si=document.getElementById('sav-invest');if(si)si.textContent=fmt(periodInvLogged);
   document.getElementById('sav-withdrawn').textContent=fmt(periodWd);
   document.getElementById('sav-rate').textContent=rate+'%';
 
@@ -1735,50 +1814,52 @@ function renderSavings(){
   const lbl=document.getElementById('sav-period-label');
   if(lbl) lbl.textContent=MOF[pm-1]+' '+py;
 
-  // ── Build savings history table ──
-  // Merge planned savings and logged savings for the selected period
-  const plannedForPeriod=plans.filter(p=>p.planType==='savings'&&p.date===filterMo);
+  // ── Build savings history table — includes both savings and investments ──
+  const allPlannedForPeriod=plans.filter(p=>(p.planType==='savings'||p.planType==='investment')&&p.date===filterMo);
   const loggedForPeriod=[...periodSavTxns].sort((a,b)=>b.id-a.id);
 
-  // Create rows: match planned to logged by linkedTxnId if available, otherwise list separately
   const rows=[];
   const matchedLoggedIds=new Set();
-
-  plannedForPeriod.forEach(p=>{
+  allPlannedForPeriod.forEach(p=>{
     const linked=p.linkedTxnId?loggedForPeriod.find(t=>t.id===p.linkedTxnId):null;
     if(linked) matchedLoggedIds.add(linked.id);
-    rows.push({desc:p.desc,planned:p.amount,logged:linked?linked.amount:null,planId:p.id,txnId:linked?linked.id:null,done:p.done,date:p.date});
+    const isInv=p.planType==='investment';
+    rows.push({desc:p.desc,planned:p.amount,savings:(!isInv&&linked)?linked.amount:null,invest:(isInv&&linked)?linked.amount:null,planId:p.id,txnId:linked?linked.id:null,done:p.done,date:p.date,isInv});
   });
-  // Add logged entries that have no matching plan
   loggedForPeriod.filter(t=>!matchedLoggedIds.has(t.id)).forEach(t=>{
-    rows.push({desc:t.desc,planned:null,logged:t.amount,planId:null,txnId:t.id,done:true,date:t.date});
+    const isInv=t.savingsType==='investment';
+    rows.push({desc:t.desc,planned:null,savings:isInv?null:t.amount,invest:isInv?t.amount:null,planId:null,txnId:t.id,done:true,date:t.date,isInv});
   });
 
   const rowsEl=document.getElementById('sav-history-rows');
   const footerEl=document.getElementById('sav-table-footer');
   if(!rows.length){
-    rowsEl.innerHTML='<div class="empty" style="padding:24px"><p>No savings records for this period</p></div>';
+    rowsEl.innerHTML='<div class="empty" style="padding:24px"><p>No savings or investment records for this period</p></div>';
     if(footerEl) footerEl.style.display='none';
   } else {
     rowsEl.innerHTML=rows.map(r=>`
-      <div class="sav-table-row">
+      <div class="sav-table-row sav-table-row-inv">
         <div>
-          <div class="sav-table-desc">${r.desc}</div>
+          <div class="sav-table-desc">${r.desc}${r.isInv?'<span class="inv-badge">📈 Invest</span>':''}</div>
           <div class="sav-table-meta">${displayDate(r.date)}${r.done?' · ✓ Logged':''}</div>
         </div>
         <div class="sav-table-amt ${r.planned!==null?'planned':'empty'}">${r.planned!==null?fmt(r.planned):'—'}</div>
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;">
-          <span class="sav-table-amt ${r.logged!==null?'logged':'empty'}">${r.logged!==null?fmt(r.logged):'—'}</span>
-          ${r.planId&&!r.done?`<button class="sav-log-btn" onclick="quickLogSavingsPlan(${r.planId})">Log</button>`:''}
+        <div class="sav-table-amt ${r.savings!==null?'logged':'empty'}">${r.savings!==null?fmt(r.savings):'—'}</div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
+          <span class="sav-table-amt ${r.invest!==null?'invest':'empty'}">${r.invest!==null?fmt(r.invest):'—'}</span>
+          ${r.planId&&!r.done?`<button class="sav-log-btn" onclick="quickLogSavingsPlan(${r.planId})" style="${r.isInv?'background:var(--purple)':''}">Log</button>`:''}
+          ${r.txnId?`<button onclick="openEditTxn(${r.txnId})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 3px;border-radius:6px;" title="Edit">✏️</button>`:''}
           ${r.txnId?`<button onclick="delTxn(${r.txnId})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:2px;" title="Delete">✕</button>`:''}
         </div>
       </div>`).join('');
     const footPlanned=rows.reduce((s,r)=>s+(r.planned||0),0);
-    const footLogged=rows.reduce((s,r)=>s+(r.logged||0),0);
+    const footLogged=rows.reduce((s,r)=>s+(r.savings||0),0);
+    const footInvest=rows.reduce((s,r)=>s+(r.invest||0),0);
     if(footerEl){
       footerEl.style.display='grid';
       document.getElementById('sav-footer-planned').textContent=fmt(footPlanned);
       document.getElementById('sav-footer-logged').textContent=fmt(footLogged);
+      const fi=document.getElementById('sav-footer-invest');if(fi)fi.textContent=fmt(footInvest);
     }
   }
 
@@ -1795,7 +1876,7 @@ function renderPlannedInSavings(filterMo){
   const now=toMo();
   // Show unlogged savings plans for current or overdue months
   const savPlansToShow=plans.filter(p=>{
-    if((p.planType||'expense')!=='savings') return false;
+    if((p.planType||'expense')!=='savings'&&p.planType!=='investment') return false;
     if(p.done) return false;
     return p.date===filterMo || (filterMo===now && p.date<now);
   }).sort((a,b)=>{
@@ -2178,7 +2259,7 @@ async function clearSheetDataRows(tabs, monthFilter){
 async function addPlan(){
   const planType=document.getElementById('pl-type')?document.getElementById('pl-type').value:'expense';
   const desc=document.getElementById('pl-desc').value.trim();
-  const cat =planType==='savings'?'Savings':document.getElementById('pl-cat').value;
+  const cat =(planType==='savings'||planType==='investment')?'Savings':document.getElementById('pl-cat').value;
   const date=document.getElementById('pl-date').value;
   const amt =parseFloat(document.getElementById('pl-amt').value);
   const recur=document.getElementById('pl-recur').value;
@@ -2203,7 +2284,8 @@ async function togglePlanDone(id){
     p.linkedTxnId=Date.now(); // store link so we can remove it if unmarked
     const t={
       id:p.linkedTxnId,
-      type:p.planType==='savings'?'savings':'expense',
+      type:(p.planType==='savings'||p.planType==='investment')?'savings':'expense',
+      savingsType:p.planType==='investment'?'investment':(p.planType==='savings'?'savings':undefined),
       desc:p.desc,
       cat:p.cat,
       date:p.date,
@@ -2381,7 +2463,8 @@ function renderPlanner(){
         const badgeMap={done:'done',current:'current',overdue:'overdue',future:'future'};
         const badgeTxt={done:'Logged ✓',current:'This month',overdue:'Overdue',future:'Upcoming'};
         const isSavPlan=(p.planType||'expense')==='savings';
-        const c=isSavPlan?{icon:'🏦',color:'#0f766e'}:catOf(p.cat);
+        const isInvPlan=p.planType==='investment';
+        const c=(isSavPlan||isInvPlan)?{icon:isInvPlan?'📈':'🏦',color:isInvPlan?'#7c3aed':'#0f766e'}:catOf(p.cat);
         return `<div class="pitem ${status}">
           <button class="pcheck ${checkCls}" onclick="togglePlanDone(${p.id})" title="${p.done?'Unmark — removes expense':'Mark as logged & add to expenses'}">${checkIcon}</button>
           <div class="ticon expense" style="background:${c.color}22;font-size:14px;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${c.icon}</div>
@@ -2390,7 +2473,7 @@ function renderPlanner(){
             <div class="pmeta">
               <span class="pbadge ${badgeMap[status]}">${badgeTxt[status]}</span>
               <span>${p.cat}</span>
-              ${isSavPlan?'<span style="color:var(--teal);font-size:10px;font-weight:600;">🏦 Savings</span>':''}
+              ${isSavPlan?'<span style="color:var(--teal);font-size:10px;font-weight:600;">🏦 Savings</span>':isInvPlan?'<span style="color:var(--purple);font-size:10px;font-weight:600;">📈 Investment</span>':''}
               ${p.recur==='monthly'?'<span style="color:var(--blue);font-size:10px;">↻ monthly</span>':''}
               ${p.notes?'· '+p.notes:''}
             </div>
@@ -2519,7 +2602,16 @@ function openEditTxn(id){
   // Show category or source dropdown depending on type
   const catSel=document.getElementById('et-cat');
   const srcSel=document.getElementById('et-src');
-  if(t.type==='expense'||t.type==='savings'){
+  if(t.type==='savings'){
+    // For savings, show a Type selector (Savings/Investment) instead of category
+    catSel.style.display='none'; srcSel.style.display='none';
+    // Re-use srcSel as a savingsType selector
+    srcSel.style.display='';
+    srcSel.innerHTML='<option value="savings">🏦 Savings</option><option value="investment">📈 Investment</option>';
+    srcSel.value=t.savingsType||'savings';
+    // Also hide the recurring row
+    const rr=document.getElementById('et-recur-row');if(rr)rr.style.display='none';
+  } else if(t.type==='expense'){
     catSel.style.display=''; srcSel.style.display='none';
     catSel.innerHTML=cats.map(c=>`<option value="${c.name}">${c.icon} ${c.name}</option>`).join('');
     catSel.value=t.cat||cats[0].name;
@@ -2550,7 +2642,8 @@ async function saveEditTxn(id){
   if(!newAmt||newAmt<=0)return toast('Valid amount required','er');
   // Apply changes
   t.desc=newDesc; t.date=newDate; t.amount=newAmt; t.notes=newNotes;
-  if(t.type==='expense'||t.type==='savings') t.cat=document.getElementById('et-cat').value;
+  if(t.type==='savings') t.savingsType=document.getElementById('et-src').value;
+  else if(t.type==='expense') t.cat=document.getElementById('et-cat').value;
   else if(t.type==='income') t.source=document.getElementById('et-src').value;
   saveTxns();
   render(); renderHistory(); renderSavings();
