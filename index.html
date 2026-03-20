@@ -2245,30 +2245,53 @@ async function doClearAll(){
 }
 
 async function clearSheetDataRows(tabs, monthFilter){
-  // For each tab, find all data rows and clear them
-  // monthFilter = 'YYYY-MM' to only clear that month, or null to clear all data rows
+  // Get the sheet metadata once to find sheetIds (needed for deleteRows)
+  let sheetMeta = {};
+  try{
+    const meta = await shReq('');
+    meta.sheets.forEach(s=>{ sheetMeta[s.properties.title]=s.properties.sheetId; });
+  }catch(e){ console.warn('Could not get sheet metadata:',e); return; }
+
   for(const tab of tabs){
     try{
-      const res = await shReq('/values/'+encodeURIComponent(tab)+'!A:A');
-      const rows = res.values || [];
-      // rows[0] = header, rows[1..] = data
-      const rowsToClear = [];
-      for(let i=1; i<rows.length; i++){
-        if(!monthFilter){
-          // Clear all data rows
-          rowsToClear.push(i+1); // 1-indexed sheet row
-        } else {
-          // Only clear rows whose date column (col B = index 1) starts with the month
-          const fullRow = await shReq('/values/'+encodeURIComponent(tab)+'!A'+(i+1)+':J'+(i+1));
-          const rowData = (fullRow.values||[[]])[0]||[];
-          const dateVal = rowData[1]||'';
-          if(dateVal.startsWith(monthFilter)) rowsToClear.push(i+1);
+      if(!monthFilter){
+        // ── Full clear: delete ALL data rows (keep row 1 = header) ──────────
+        // Read column A to know how many rows exist
+        const res = await shReq('/values/'+encodeURIComponent(tab)+'!A:A');
+        const rows = res.values || [];
+        const dataRowCount = rows.length - 1; // subtract header
+        if(dataRowCount <= 0) continue;
+        const sheetId = sheetMeta[tab];
+        if(sheetId === undefined){ console.warn('No sheetId for '+tab); continue; }
+        // Delete rows 1..end (0-indexed, row 0 = header, so start at 1)
+        await shReq(':batchUpdate','POST',{requests:[{
+          deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:1,endIndex:rows.length}}
+        }]});
+      } else {
+        // ── Month filter: read full data, delete only matching rows ──────────
+        // Read full sheet to find which rows match the month
+        const res = await shReq('/values/'+encodeURIComponent(tab)+'!A:K');
+        const rows = res.values || [];
+        // Collect 0-indexed row numbers to delete (skip row 0 = header)
+        // Go in REVERSE order so deleting rows doesn't shift indices
+        const toDelete = [];
+        for(let i=1; i<rows.length; i++){
+          const dateVal = rows[i][1]||'';
+          if(dateVal.startsWith(monthFilter)) toDelete.push(i);
+        }
+        if(toDelete.length === 0) continue;
+        const sheetId = sheetMeta[tab];
+        if(sheetId === undefined) continue;
+        // Delete from bottom up so indices don't shift
+        toDelete.reverse();
+        // Batch into groups of 10 requests
+        for(let i=0;i<toDelete.length;i+=10){
+          const batch = toDelete.slice(i,i+10);
+          await shReq(':batchUpdate','POST',{requests: batch.map(rowIdx=>({
+            deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:rowIdx,endIndex:rowIdx+1}}
+          }))});
         }
       }
-      if(rowsToClear.length===0) continue;
-      // Use batchClear to clear all matched rows in one request
-      const ranges = rowsToClear.map(r=>encodeURIComponent(tab)+'!A'+r+':J'+r);
-      await shReq('/values:batchClear','POST',{ranges: rowsToClear.map(r=>tab+'!A'+r+':J'+r)});
     } catch(e){
       console.warn('Clear failed for tab '+tab+':',e);
     }
