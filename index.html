@@ -907,6 +907,16 @@ const catOf= n=>cats.find(c=>c.name===n)||{icon:'📦',color:'#999'};
 const srcOf= n=>srcs.find(s=>s.name===n)||{icon:'✨'};
 const displayDate = d=>{if(!d)return '';const[y,m]=d.split('-');return MOF[parseInt(m)-1]+' '+y;}
 
+// Always returns the current session user — never 'Offline' if we have a stored email
+function currentUser(){
+  // userEmail is set by signIn() from Google's live profile
+  // If for any reason it's null mid-session, recover from localStorage as safety net
+  if(userEmail) return userEmail;
+  const stored = localStorage.getItem('hft_email');
+  if(stored && stored !== 'Google User') return stored;
+  return offlineMode ? 'Offline' : 'Unknown';
+}
+
 // ─── BOOT ──────────────────────────────────────────────────────────────────
 window.onload=()=>{
   document.getElementById('auth-screen').style.display='flex';
@@ -1086,8 +1096,12 @@ async function ensureTabs(){
   }
 }
 
+let _syncInProgress = false;
 async function loadFromSheets(){
   if(!accessToken)return;
+  // Prevent concurrent syncs — if a sync is already running, skip
+  if(_syncInProgress){ console.log('Sync already in progress, skipping'); return; }
+  _syncInProgress = true;
   setSyncDot('sy');
   try{
     const safeGet=async(range)=>{try{return await shReq('/values/'+encodeURIComponent(range));}catch(e){return {values:[]};}};
@@ -1168,9 +1182,18 @@ async function loadFromSheets(){
     savePlans();
 
     // Push any local-only entries up to sheet (items created offline)
-    if(localOnly.length) await pushTxns(localOnly);
-    if(wLocalOnly.length) await pushWithdrawals(wLocalOnly);
-    if(pLocalOnly.length) await pushPlans(pLocalOnly);
+    // Only push IDs that are genuinely NOT already in the sheet (deduplicate)
+    const alreadyInSheet=new Set([
+      ...loaded.map(t=>t.id),
+      ...wLoaded.map(w=>w.id),
+      ...pLoaded.map(p=>p.id)
+    ]);
+    const safeTxns  = localOnly.filter(t=>!alreadyInSheet.has(t.id));
+    const safeWds   = wLocalOnly.filter(w=>!alreadyInSheet.has(w.id));
+    const safePlans = pLocalOnly.filter(p=>!alreadyInSheet.has(p.id));
+    if(safeTxns.length)  await pushTxns(safeTxns);
+    if(safeWds.length)   await pushWithdrawals(safeWds);
+    if(safePlans.length) await pushPlans(safePlans);
 
     setSyncDot('on');
     const now=new Date().toLocaleTimeString();
@@ -1186,13 +1209,14 @@ async function loadFromSheets(){
     setSyncDot('er');
     const wasLoading=document.getElementById('loading-screen').style.display!=='none';
     if(wasLoading){
-      // Even if sync fails, show the app with whatever local data we have
       showMain();
       showBanner('Sync failed — showing local data. Pull down to retry.','err');
     } else {
       showBanner(e.message,'err');
       toast('Sync failed','er');
     }
+  } finally {
+    _syncInProgress = false;
   }
 }
 
@@ -1338,7 +1362,7 @@ async function logIncome(){
   if(!desc)return toast('Please add a description','er');
   if(!date)return toast('Please select a month','er');
   if(!amt||amt<=0)return toast('Please enter a valid amount','er');
-  const t={id:Date.now(),type:'income',desc,source:src,date,amount:amt,notes,createdBy:userEmail||'Offline',createdAt:nowStr()};
+  const t={id:Date.now(),type:'income',desc,source:src,date,amount:amt,notes,createdBy:currentUser(),createdAt:nowStr()};
   txns.unshift(t);saveTxns();
   ['i-desc','i-amt','i-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('i-date').value=toMo();
@@ -1357,10 +1381,10 @@ async function logExpense(){
   if(!desc)return toast('Please add a description','er');
   if(!date)return toast('Please select a month','er');
   if(!amt||amt<=0)return toast('Please enter a valid amount','er');
-  const t={id:Date.now(),type:'expense',desc,cat,date,amount:amt,notes,createdBy:userEmail||'Offline',createdAt:nowStr()};
+  const t={id:Date.now(),type:'expense',desc,cat,date,amount:amt,notes,createdBy:currentUser(),createdAt:nowStr()};
   // If category is Savings, also log as savings type
   if(cat==='Savings'){
-    const st={id:Date.now()+1,type:'savings',desc,date,amount:amt,notes,createdBy:userEmail||'Offline',createdAt:nowStr()};
+    const st={id:Date.now()+1,type:'savings',desc,date,amount:amt,notes,createdBy:currentUser(),createdAt:nowStr()};
     txns.unshift(st);
     if(accessToken) await pushTxns([st]);
   }
@@ -1390,7 +1414,7 @@ async function logSavings(){
   if(!desc) return toast('Please add a description','er');
   if(!date) return toast('Please select a month','er');
   if(!amt||amt<=0) return toast('Please enter a valid amount','er');
-  const t={id:Date.now(),type:'savings',savingsType:svType,desc,date,amount:amt,notes,createdBy:userEmail||'Offline',createdAt:nowStr()};
+  const t={id:Date.now(),type:'savings',savingsType:svType,desc,date,amount:amt,notes,createdBy:currentUser(),createdAt:nowStr()};
   txns.unshift(t); saveTxns();
   ['sv-desc','sv-amt','sv-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('sv-date').value=toMo();
@@ -1403,7 +1427,7 @@ async function logSavings(){
 async function quickLogSavingsPlan(planId){
   const p=plans.find(x=>x.id===planId);if(!p) return;
   p.linkedTxnId=Date.now();
-  const t={id:p.linkedTxnId,type:'savings',savingsType:p.planType==='investment'?'investment':'savings',desc:p.desc,date:p.date,amount:p.amount,notes:p.notes||'',createdBy:userEmail||'Offline',createdAt:nowStr(),fromPlanner:true};
+  const t={id:p.linkedTxnId,type:'savings',savingsType:p.planType==='investment'?'investment':'savings',desc:p.desc,date:p.date,amount:p.amount,notes:p.notes||'',createdBy:currentUser(),createdAt:nowStr(),fromPlanner:true};
   txns.unshift(t);
   p.done=true;
   saveTxns(); savePlans();
@@ -1426,7 +1450,7 @@ async function logWithdrawal(){
   if(!reason)return toast('Please add a reason','er');
   if(!date)return toast('Please select a month','er');
   if(!amt||amt<=0)return toast('Please enter a valid amount','er');
-  const w={id:Date.now(),date,reason,amount:amt,notes,createdBy:userEmail||'Offline',createdAt:nowStr()};
+  const w={id:Date.now(),date,reason,amount:amt,notes,createdBy:currentUser(),createdAt:nowStr()};
   withdrawals.unshift(w);saveWds();
   ['w-reason','w-amt','w-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('w-date').value=toMo();
@@ -1466,7 +1490,7 @@ function applySettings(){
   const bl=document.getElementById('a-budgetlbl');
   if(bl)bl.textContent=settings.budgetTarget?'Target: '+fmt(settings.budgetTarget)+'/month':'Not set — uses income total';
   const au=document.getElementById('a-user'),ab=document.getElementById('a-authbtn');
-  if(au)au.textContent=userEmail||(offlineMode?'Offline mode':'Not signed in');
+  if(au)au.textContent=currentUser()||(offlineMode?'Offline mode':'Not signed in');
   if(ab)ab.textContent=accessToken?'Sign out':'Sign in';
   const ls=document.getElementById('a-lastsync');
   if(ls)ls.textContent=localStorage.getItem('hft_last_sync')||'Never';
@@ -2272,7 +2296,7 @@ async function addPlan(){
   if(!desc) return toast('Please add a description','er');
   if(!date) return toast('Please select a month','er');
   if(!amt||amt<=0) return toast('Please enter a valid amount','er');
-  const p={id:Date.now(),date,desc,cat,amount:amt,recur,notes,done:false,planType,createdBy:userEmail||'Offline',createdAt:nowStr()};
+  const p={id:Date.now(),date,desc,cat,amount:amt,recur,notes,done:false,planType,createdBy:currentUser(),createdAt:nowStr()};
   plans.unshift(p); savePlans();
   ['pl-desc','pl-amt','pl-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pl-date').value=toMo();
@@ -2297,7 +2321,7 @@ async function togglePlanDone(id){
       date:p.date,
       amount:p.amount,
       notes:p.notes||'',
-      createdBy:userEmail||'Offline',
+      createdBy:currentUser(),
       createdAt:nowStr(),
       fromPlanner:true
     };
@@ -2505,7 +2529,7 @@ async function quickLogPlanned(planId){
     date:p.date,        // Use the plan's own month, not necessarily current month
     amount:p.amount,
     notes:p.notes||'',
-    createdBy:userEmail||'Offline',
+    createdBy:currentUser(),
     createdAt:nowStr()
   };
   txns.unshift(t);
