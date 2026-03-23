@@ -846,7 +846,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const CLIENT_ID  = '382179998283-dac6jake0ssbd2r66mlip4rrfkem0777.apps.googleusercontent.com';
 const SHEET_ID   = '1IO4p8FfjgPxPdC5L2buTrfpCGOYPGTGZH6yh2VYRYDg';
-const SCOPES     = 'https://www.googleapis.com/auth/spreadsheets';
+const SCOPES     = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
 const TAB_INC    = 'Income';
 const TAB_EXP    = 'Expenses';
 const TAB_SAV    = 'Savings';
@@ -979,8 +979,12 @@ function signIn(){
       .then(info=>{
         // Use the email from the live Google session — this is the signed-in user
         // Store it so it is used on EVERY transaction created in this session
-        userEmail = info.email;
-        localStorage.setItem('hft_email', userEmail);
+        userEmail = info.email || info.name || null;
+        if(!userEmail){
+          toast('Could not read your Google email. Check app permissions.','er');
+          console.warn('Google userinfo response:', info);
+        }
+        if(userEmail) localStorage.setItem('hft_email', userEmail);
         showLoading('Syncing your data from Google Sheets...');
         setupAndSync();
       })
