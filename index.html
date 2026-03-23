@@ -533,7 +533,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="recur-card-sub" id="exp-recur-sub">From planner recurring items</div>
         </div>
       </div>
-
+    <!-- 3. Log Expense form trigger -->
+      <button class="btn" style="margin-top:4px;" onclick="openSheet('expense')">+ Log Expense</button>
+    </div>
       <!-- Pending from planner banner -->
       <div class="pending-banner" id="pending-banner">
         ⚠️ <span id="pending-banner-text">You have overdue planned expenses</span>
@@ -558,9 +560,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
         <div id="planned-in-exp-list"></div>
       </div>
-      <!-- 3. Log Expense form trigger -->
-      <button class="btn" style="margin-top:4px;" onclick="openSheet('expense')">+ Log Expense</button>
-    </div>
+  
 
     <!-- SAVINGS -->
     <div id="tp-savings" class="tp">
@@ -585,7 +585,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="card"><div class="ci">➖</div><div class="cl">Withdrawn</div><div class="cv r" id="sav-withdrawn">K 0.00</div></div>
         <div class="card" style="grid-column:1/-1;"><div class="ci">📊</div><div class="cl">Savings Rate (Savings + Investments ÷ Income)</div><div class="cv gold" id="sav-rate">0%</div></div>
       </div>
-
+     <!-- Log savings / investment -->
+            <div style="display:flex;gap:10px;margin-top:4px;">
+        <button class="btn tb2" style="flex:1;" onclick="openSheet('savings')">🏦 Log Savings</button>
+        <button class="btn" style="flex:1;background:var(--red);" onclick="openSheet('withdrawal')">💸 Withdrawal</button>
+      </div>
+    </div>
       <!-- Savings transaction history table -->
       <div class="sav-history-table">
         <div class="rh" style="padding:12px 14px 8px;">
@@ -624,12 +629,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="withdraw-list" id="w-list"><div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div></div>
       </div>
 
-      <!-- Log savings / investment -->
-            <div style="display:flex;gap:10px;margin-top:4px;">
-        <button class="btn tb2" style="flex:1;" onclick="openSheet('savings')">🏦 Log Savings</button>
-        <button class="btn" style="flex:1;background:var(--red);" onclick="openSheet('withdrawal')">💸 Withdrawal</button>
-      </div>
-    </div>
+ 
 
 
     <!-- PLANNER -->
