@@ -378,6 +378,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .bsheet-body .fg{margin-bottom:12px;}
 .bsheet-body .fg:first-child{margin-top:12px;}
 
+
+/* COLLAPSIBLE SECTIONS */
+.collapsible-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:12px 14px;border-radius:var(--r);background:var(--surface);box-shadow:var(--sh);margin-bottom:2px;}
+.collapsible-hdr:hover{background:var(--surface2);}
+.collapsible-hdr .st{font-size:14px;display:flex;align-items:center;gap:6px;}
+.collapsible-hdr .chev{font-size:12px;color:var(--text3);transition:transform .25s;flex-shrink:0;}
+.collapsible-hdr .chev.open{transform:rotate(180deg);}
+.collapsible-body{overflow:hidden;transition:max-height .3s ease,opacity .3s ease;max-height:0;opacity:0;}
+.collapsible-body.open{max-height:9999px;opacity:1;}
+.collapsible-wrap{margin-bottom:14px;}
+
 </style>
 </head>
 <body>
@@ -475,12 +486,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
       </div>
 
-      <!-- Expenses by category -->
-      <div class="cat-sec">
-        <div class="rh"><div class="st">Expenses by Category</div></div>
-        <div id="d-cats"><div class="empty" style="padding:20px 0"><div class="eico">📂</div><p>No expenses yet</p></div></div>
-      </div>
-
       <!-- All transactions for selected period -->
       <div class="dash-txn-sec">
         <div class="rh">
@@ -540,24 +545,46 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <button style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;font-weight:700;font-size:13px;" onclick="sw('planner',document.querySelectorAll('.tb')[4])">View →</button>
       </div>
 
-      <!-- 1. This Month's Expenses (top) -->
-      <div class="fc" style="padding:14px 16px">
-        <div class="rh" style="margin-bottom:10px;">
-          <div class="st" style="font-size:14px;">🔴 This Month's Expenses</div>
-          <span id="e-list-total" style="font-size:13px;font-weight:700;color:var(--red);">K 0.00</span>
+      <!-- Expenses by Category (collapsible) -->
+      <div class="collapsible-wrap">
+        <div class="collapsible-hdr" onclick="toggleCollapse('col-exp-cats',this)">
+          <div class="st">📂 Expenses by Category</div>
+          <span class="chev open">▼</span>
         </div>
-        <!-- Category filter -->
-        <div class="exp-cat-filter" id="exp-cat-filter"></div>
-        <div id="e-list"><div class="empty" style="padding:12px 0"><p>No expenses this month</p></div></div>
-      </div>
-      <!-- 2. From Planner (middle) -->
-      <div id="planned-in-exp" class="plan-in-exp" style="display:none;">
-        <div class="plan-in-exp-hdr">
-          <div class="st">📅 From Planner</div>
-          <span id="planned-in-exp-count" style="font-size:11px;color:var(--text3);"></span>
+        <div class="collapsible-body open" id="col-exp-cats">
+          <div class="cat-sec" style="border-radius:0 0 var(--r) var(--r);box-shadow:none;margin-bottom:0;">
+            <div id="d-cats"><div class="empty" style="padding:20px 0"><div class="eico">📂</div><p>No expenses yet</p></div></div>
+          </div>
         </div>
-        <div id="planned-in-exp-list"></div>
       </div>
+
+      <!-- 1. This Month's Expenses (collapsible) -->
+      <div class="collapsible-wrap">
+        <div class="collapsible-hdr" onclick="toggleCollapse('col-exp-list',this)">
+          <div class="st">🔴 This Month's Expenses <span id="e-list-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;">K 0.00</span></div>
+          <span class="chev open">▼</span>
+        </div>
+        <div class="collapsible-body open" id="col-exp-list">
+          <div style="background:var(--surface);border-radius:0 0 var(--r) var(--r);padding:12px 14px;box-shadow:var(--sh);">
+            <div class="exp-cat-filter" id="exp-cat-filter" style="margin-bottom:10px;"></div>
+            <div id="e-list"><div class="empty" style="padding:12px 0"><p>No expenses this month</p></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. From Planner (collapsible) -->
+      <div class="collapsible-wrap" id="planned-in-exp-wrap" style="display:none;">
+        <div class="collapsible-hdr" onclick="toggleCollapse('col-from-planner',this)">
+          <div class="st">📅 From Planner <span id="planned-in-exp-count" style="font-size:11px;color:var(--text3);margin-left:6px;"></span></div>
+          <span class="chev open">▼</span>
+        </div>
+        <div class="collapsible-body open" id="col-from-planner">
+          <div id="planned-in-exp" class="plan-in-exp" style="border-radius:0 0 var(--r) var(--r);box-shadow:none;margin-bottom:0;">
+            <div id="planned-in-exp-list"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- 3. Log Expense form trigger -->
       <button class="btn" style="margin-top:4px;" onclick="openSheet('expense')">+ Log Expense</button>
     </div>
@@ -592,42 +619,57 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <button class="btn" style="flex:1;background:var(--red);" onclick="openSheet('withdrawal')">💸 Withdrawal</button>
       </div>
 
-      <!-- From Savings Planner section -->
-      <div id="planned-in-sav" class="plan-in-exp" style="display:none;margin-bottom:16px;">
-        <div class="plan-in-exp-hdr">
-          <div class="st">📅 Planned Savings</div>
-          <span id="planned-in-sav-count" style="font-size:11px;color:var(--text3);"></span>
+      <!-- Planned Savings (collapsible) -->
+      <div class="collapsible-wrap" id="planned-in-sav-wrap">
+        <div class="collapsible-hdr" onclick="toggleCollapse('col-sav-planned',this)">
+          <div class="st">📅 Planned Savings <span id="planned-in-sav-count" style="font-size:11px;color:var(--text3);margin-left:6px;"></span></div>
+          <span class="chev open">▼</span>
         </div>
-        <div id="planned-in-sav-list"></div>
-      </div>
-
-      <!-- Savings transaction history table -->
-      <div class="sav-history-table">
-        <div class="rh" style="padding:12px 14px 8px;">
-          <div class="st" style="font-size:14px;">🏦 Savings History</div>
-          <span id="sav-period-label" style="font-size:11px;color:var(--text3);"></span>
-        </div>
-        <div class="sav-tbl-scroll">
-          <div class="sav-table-hdr sav-table-hdr-inv">
-            <span>Description</span>
-            <span style="text-align:right;">Planned</span>
-            <span style="text-align:right;">Savings</span>
-            <span style="text-align:right;">Invest</span>
-          </div>
-          <div id="sav-history-rows"><div class="empty" style="padding:24px"><p>No savings records</p></div></div>
-          <div class="sav-table-footer sav-table-footer-inv" id="sav-table-footer" style="display:none;">
-            <span class="lbl">Total</span>
-            <span class="planned-total" id="sav-footer-planned">K 0.00</span>
-            <span class="logged-total" id="sav-footer-logged">K 0.00</span>
-            <span class="sav-table-amt invest" id="sav-footer-invest">K 0.00</span>
+        <div class="collapsible-body open" id="col-sav-planned">
+          <div id="planned-in-sav" class="plan-in-exp" style="border-radius:0 0 var(--r) var(--r);box-shadow:none;margin-bottom:0;">
+            <div id="planned-in-sav-list"></div>
           </div>
         </div>
       </div>
 
-      <!-- Withdrawal history -->
-      <div class="withdraw-sec">
-        <div class="rh"><div class="st">Withdrawal History</div></div>
-        <div class="withdraw-list" id="w-list"><div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div></div>
+      <!-- Savings History (collapsible) -->
+      <div class="collapsible-wrap">
+        <div class="collapsible-hdr" onclick="toggleCollapse('col-sav-history',this)">
+          <div class="st">🏦 Savings History <span id="sav-period-label" style="font-size:11px;color:var(--text3);margin-left:6px;"></span></div>
+          <span class="chev open">▼</span>
+        </div>
+        <div class="collapsible-body open" id="col-sav-history">
+          <div class="sav-history-table" style="border-radius:0 0 var(--r) var(--r);box-shadow:none;margin-bottom:0;">
+            <div class="sav-tbl-scroll">
+              <div class="sav-table-hdr sav-table-hdr-inv">
+                <span>Description</span>
+                <span style="text-align:right;">Planned</span>
+                <span style="text-align:right;">Savings</span>
+                <span style="text-align:right;">Invest</span>
+              </div>
+              <div id="sav-history-rows"><div class="empty" style="padding:24px"><p>No savings records</p></div></div>
+              <div class="sav-table-footer sav-table-footer-inv" id="sav-table-footer" style="display:none;">
+                <span class="lbl">Total</span>
+                <span class="planned-total" id="sav-footer-planned">K 0.00</span>
+                <span class="logged-total" id="sav-footer-logged">K 0.00</span>
+                <span class="sav-table-amt invest" id="sav-footer-invest">K 0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Withdrawal History (collapsible) -->
+      <div class="collapsible-wrap">
+        <div class="collapsible-hdr" onclick="toggleCollapse('col-wd-history',this)">
+          <div class="st">💸 Withdrawal History</div>
+          <span class="chev open">▼</span>
+        </div>
+        <div class="collapsible-body open" id="col-wd-history">
+          <div class="withdraw-sec" style="border-radius:0 0 var(--r) var(--r);box-shadow:none;margin-bottom:0;">
+            <div class="withdraw-list" id="w-list"><div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1757,11 +1799,7 @@ function renderDashboard(){
   document.getElementById('d-plan-carry').textContent=carried.length+' item'+(carried.length===1?'':'s');
   document.getElementById('d-plan-carry-amt').textContent=fmt(carriedAmt)+' overdue';
 
-  // Category bars
-  const cT={};t.filter(x=>x.type==='expense').forEach(x=>{cT[x.cat]=(cT[x.cat]||0)+x.amount;});
-  const cL=Object.entries(cT).sort((a,b)=>b[1]-a[1]);const mx=cL[0]?cL[0][1]:1;
-  const ce=document.getElementById('d-cats');
-  ce.innerHTML=cL.length?cL.map(([cn,am])=>{const c=catOf(cn);return`<div class="cat-row"><div class="cdot" style="background:${c.color}"></div><div class="cname">${c.icon} ${cn}</div><div class="cbw"><div class="cb" style="width:${(am/mx)*100}%;background:${c.color}"></div></div><div class="camt">${fmt(am)}</div></div>`;}).join(''):'<div class="empty" style="padding:20px 0"><div class="eico">📂</div><p>No expenses for this period</p></div>';
+  // Category bars now rendered by renderQLists on the Expenses tab
 
   // All transactions for selected period — group by type
   const allForPeriod=[
@@ -1852,6 +1890,13 @@ function renderQLists(){
   const ltEl=document.getElementById('e-list-total');
   if(ltEl) ltEl.textContent=fmt(listTotal)+(expCatFilter!=='all'?' (filtered)':'');
 
+  // ── Expenses by Category bars (now on Expenses tab) ──
+  const cT={};expAll.forEach(x=>{cT[x.cat]=(cT[x.cat]||0)+x.amount;});
+  const cL=Object.entries(cT).sort((a,b)=>b[1]-a[1]);
+  const mx=cL[0]?cL[0][1]:1;
+  const ce=document.getElementById('d-cats');
+  if(ce) ce.innerHTML=cL.length?cL.map(([cn,am])=>{const c=catOf(cn);return`<div class="cat-row"><div class="cdot" style="background:${c.color}"></div><div class="cname">${c.icon} ${cn}</div><div class="cbw"><div class="cb" style="width:${(am/mx)*100}%;background:${c.color}"></div></div><div class="camt">${fmt(am)}</div></div>`;}).join(''):'<div class="empty" style="padding:20px 0"><div class="eico">📂</div><p>No expenses this month</p></div>';
+
   // ── Update income hero card ──
   const incTotal=inc.reduce((s,x)=>s+x.amount,0);
   const incMax=inc.length?Math.max(...inc.map(x=>x.amount)):0;
@@ -1905,17 +1950,17 @@ function renderQLists(){
     return a.date.localeCompare(b.date);
   });
 
-  const container=document.getElementById('planned-in-exp');
+  const container=document.getElementById('planned-in-exp-wrap')||document.getElementById('planned-in-exp');
   const listEl=document.getElementById('planned-in-exp-list');
   const countEl=document.getElementById('planned-in-exp-count');
-  if(!container) return;
+  if(!listEl) return;
 
   if(plannedToShow.length===0){
-    container.style.display='none';
+    if(container) container.style.display='none';
     return;
   }
 
-  container.style.display='block';
+  if(container) container.style.display='block';
   const overdueCnt=plannedToShow.filter(p=>p.date<now).length;
   const currentCnt=plannedToShow.filter(p=>p.date===now).length;
   const parts=[];
@@ -2064,12 +2109,12 @@ function renderPlannedInSavings(filterMo){
     return a.date.localeCompare(b.date);
   });
 
-  const container=document.getElementById('planned-in-sav');
+  const container=document.getElementById('planned-in-sav-wrap')||document.getElementById('planned-in-sav');
   const listEl=document.getElementById('planned-in-sav-list');
   const countEl=document.getElementById('planned-in-sav-count');
-  if(!container) return;
+  if(!listEl) return;
 
-  if(!savPlansToShow.length){ container.style.display='none'; return; }
+  if(!savPlansToShow.length){ if(container) container.style.display='none'; return; }
 
   container.style.display='block';
   const overdueCnt=savPlansToShow.filter(p=>p.date<now).length;
@@ -2893,6 +2938,17 @@ function closeBSheet(e){
 function _closeBSheet(){
   document.getElementById('bsheet-overlay').classList.remove('show');
   document.body.style.overflow='';
+}
+
+
+// ─── COLLAPSIBLE SECTIONS ────────────────────────────────────────────────────
+function toggleCollapse(bodyId, hdrEl){
+  const body = document.getElementById(bodyId);
+  if(!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  const chev = hdrEl ? hdrEl.querySelector('.chev') : null;
+  if(chev) chev.classList.toggle('open', !isOpen);
 }
 
 
