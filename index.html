@@ -1104,51 +1104,56 @@ async function ensureTabs(){
 }
 
 async function deduplicateSheetTabs(){
-  // For each data tab, read all rows, find duplicate IDs, delete the extras
-  // Keeps the FIRST occurrence of each ID and removes subsequent duplicates
+  // Cleans each sheet tab:
+  // 1. Removes rows where col A is empty/invalid — catches offset rows (data in wrong columns)
+  // 2. Removes duplicate rows with the same ID — keeps first occurrence
+  // Reads full width (A:Z) so offset rows with blank col A are detected even if
+  // the API would otherwise skip them when reading only col A
   const tabCols = [
-    {tab:TAB_INC, cols:'A:H'},
-    {tab:TAB_EXP, cols:'A:H'},
-    {tab:TAB_SAV, cols:'A:G'},
-    {tab:TAB_WD,  cols:'A:G'},
-    {tab:TAB_PLN, cols:'A:K'},
+    {tab:TAB_INC},{tab:TAB_EXP},{tab:TAB_SAV},{tab:TAB_WD},{tab:TAB_PLN},
   ];
-
-  // Get sheetIds for deleteDimension
   let sheetMeta = {};
   try{
     const meta = await shReq('');
     meta.sheets.forEach(s=>{ sheetMeta[s.properties.title]=s.properties.sheetId; });
-  }catch(e){ console.warn('Dedup: could not get metadata',e); return; }
+  }catch(e){ console.warn('Dedup: could not get metadata',e); return 0; }
 
   let totalRemoved = 0;
-
   for(const {tab} of tabCols){
     try{
-      const res = await shReq('/values/'+encodeURIComponent(tab)+'!A:A');
+      // Read full width so offset rows (blank col A but data in G-K) are included
+      const res = await shReq('/values/'+encodeURIComponent(tab)+'!A:Z');
       const rows = res.values || [];
-      if(rows.length <= 2) continue; // header + 0 or 1 data row — nothing to dedup
+      if(rows.length <= 1) continue;
 
       const seen = new Set();
-      const rowsToDelete = []; // 0-indexed sheet rows to delete
+      const rowsToDelete = [];
 
       rows.forEach((row, i) => {
         if(i === 0) return; // skip header row
         const id = row[0] ? String(row[0]).trim() : '';
-        if(!id) return; // skip empty rows
+        // Check if this row has ANY data at all (catches fully blank rows)
+        const hasAnyData = row.some(cell => cell && String(cell).trim() !== '');
+        if(!hasAnyData) return; // fully blank row — skip (don't delete, it's just padding)
+        // Delete rows where col A is not a valid 13-digit timestamp ID
+        // These are offset/malformed rows (data landed in wrong columns)
+        if(!id || isNaN(Number(id)) || Number(id) < 1000000000000){
+          rowsToDelete.push(i);
+          return;
+        }
+        // Delete duplicate IDs — keep first occurrence only
         if(seen.has(id)){
-          rowsToDelete.push(i); // duplicate — mark for deletion
+          rowsToDelete.push(i);
         } else {
           seen.add(id);
         }
       });
 
       if(rowsToDelete.length === 0) continue;
-
       const sheetId = sheetMeta[tab];
       if(sheetId === undefined) continue;
 
-      // Delete from bottom up so indices don't shift
+      // Delete bottom-up so row indices stay valid after each deletion
       rowsToDelete.reverse();
       for(let i = 0; i < rowsToDelete.length; i += 10){
         const batch = rowsToDelete.slice(i, i+10);
@@ -1157,9 +1162,9 @@ async function deduplicateSheetTabs(){
         }))});
       }
       totalRemoved += rowsToDelete.length;
-      console.log(`Dedup ${tab}: removed ${rowsToDelete.length} duplicate rows`);
+      console.log('Cleaned '+tab+': removed '+rowsToDelete.length+' bad/offset/duplicate rows');
     }catch(e){
-      console.warn('Dedup failed for tab '+tab+':',e);
+      console.warn('Clean failed for '+tab+':',e);
     }
   }
   return totalRemoved;
@@ -1785,11 +1790,14 @@ function renderQLists(){
 
   // ── Update expense hero card ──
   // Total = logged expenses + all planned expenses for this month
-  const nowMo=toMo();
+  const nowMo=moStr(); // use selected month from header, consistent with planner tab
   const expLogged=expAll.reduce((s,x)=>s+x.amount,0);
-  const plannedThisMo=plans.filter(p=>p.date===nowMo&&(p.planType||'expense')==='expense');
-  const plannedAmt=plannedThisMo.reduce((s,p)=>s+p.amount,0);
-  const expTotal=expLogged+plannedAmt;
+  // ALL plans for this month (done + pending) — represents total planned budget
+  const allPlannedThisMo=plans.filter(p=>p.date===nowMo&&(p.planType||'expense')==='expense');
+  const pendingPlannedThisMo=allPlannedThisMo.filter(p=>!p.done);
+  const plannedAmt=allPlannedThisMo.reduce((s,p)=>s+p.amount,0);
+  // Total = logged expenses + only the PENDING planned ones (done ones already in logged)
+  const expTotal=expLogged+pendingPlannedThisMo.reduce((s,p)=>s+p.amount,0);
   const eht=document.getElementById('exp-hero-total');
   const ehs=document.getElementById('exp-hero-sub');
   const ehl=document.getElementById('exp-hero-logged');
@@ -2536,9 +2544,9 @@ function renderPlanner(){
   });
 
   // Summary counts
-  const currentPlans=plans.filter(p=>p.date===now&&!p.done);
+  const currentPlans=plans.filter(p=>p.date===moStr()&&!p.done);
   const overdueCount=plans.filter(p=>planStatus(p)==='overdue').length;
-  const currentTotal=plans.filter(p=>p.date===now).reduce((s,p)=>s+p.amount,0);
+  const currentTotal=plans.filter(p=>p.date===moStr()&&(p.planType||'expense')==='expense').reduce((s,p)=>s+p.amount,0); // all plans this month (done + pending)
   const el=id=>document.getElementById(id);
   if(el('pl-current-count')) el('pl-current-count').textContent=currentPlans.length;
   if(el('pl-overdue-count')) el('pl-overdue-count').textContent=overdueCount;
