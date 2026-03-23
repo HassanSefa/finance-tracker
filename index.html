@@ -1298,28 +1298,58 @@ async function loadFromSheets(){
   }
 }
 
-async function pushTxns(list){
-  if(!accessToken||!list.length)return;
-  const inc=list.filter(t=>t.type==='income').map(t=>[t.id,t.date,t.desc,t.source,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
-  const exp=list.filter(t=>t.type==='expense').map(t=>[t.id,t.date,t.desc,t.cat,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
-  const sav=list.filter(t=>t.type==='savings').map(t=>[t.id,t.date,t.desc,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
-  // INSERT_ROWS ensures new data always appends at the bottom, never fills gaps from cleared rows
-  const q='?valueInputOption=RAW&insertDataOption=INSERT_ROWS';
+// Find the next available row for writing — scans col A for last valid ID row
+// Returns the 1-indexed sheet row number to write to (always after last valid data)
+async function nextWriteRow(tab){
   try{
-    if(inc.length)await shReq('/values/'+encodeURIComponent(TAB_INC)+'!A:H:append'+q,'POST',{values:inc});
-    if(exp.length)await shReq('/values/'+encodeURIComponent(TAB_EXP)+'!A:H:append'+q,'POST',{values:exp});
-    if(sav.length)await shReq('/values/'+encodeURIComponent(TAB_SAV)+'!A:G:append'+q,'POST',{values:sav});
-  }catch(e){console.warn('Push txns:',e);}
+    const res=await shReq('/values/'+encodeURIComponent(tab)+'!A:A');
+    const rows=res.values||[];
+    // Find the last row index where col A has a valid timestamp ID
+    let lastValidRow=0; // 0-indexed
+    rows.forEach((row,i)=>{
+      if(i===0)return; // skip header
+      const id=row[0]?String(row[0]).trim():'';
+      if(id&&!isNaN(Number(id))&&Number(id)>=1000000000000){
+        lastValidRow=i;
+      }
+    });
+    return lastValidRow+2; // +1 for 1-indexing, +1 to get next empty row
+  }catch(e){
+    return 2; // default to row 2 (after header) if we can't read
+  }
 }
 
-async function pushPlans(list){
-  if(!accessToken||!list.length)return;
-  // Store done status as 'true:linkedTxnId' so we can recover the link on sync
-  const rows=list.map(p=>[p.id,p.date,p.desc,p.cat,p.amount,p.recur,p.notes||'',
-    p.done?(p.linkedTxnId?'true:'+p.linkedTxnId:'true'):'false',
-    p.createdBy||'',p.createdAt||'',p.planType||'expense']);
-  try{await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:K:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS','POST',{values:rows});}
-  catch(e){console.warn('Push plans:',e);}
+// Cleanup of offset rows for a single tab
+async function cleanTabOffsetRows(tab){
+  if(!accessToken)return;
+  let sheetId;
+  try{
+    const meta=await shReq('');
+    const sheet=meta.sheets.find(s=>s.properties.title===tab);
+    if(!sheet)return;
+    sheetId=sheet.properties.sheetId;
+  }catch(e){return;}
+  try{
+    const res=await shReq('/values/'+encodeURIComponent(tab)+'!A:Z');
+    const rows=res.values||[];
+    const toDelete=[];
+    rows.forEach((row,i)=>{
+      if(i===0)return;
+      const id=row[0]?String(row[0]).trim():'';
+      const hasData=row.some(c=>c&&String(c).trim()!=='');
+      if(!hasData)return;
+      if(!id||isNaN(Number(id))||Number(id)<1000000000000) toDelete.push(i);
+    });
+    if(!toDelete.length)return;
+    toDelete.reverse();
+    for(let i=0;i<toDelete.length;i+=10){
+      const batch=toDelete.slice(i,i+10);
+      await shReq(':batchUpdate','POST',{requests:batch.map(rowIdx=>({
+        deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:rowIdx,endIndex:rowIdx+1}}
+      }))});
+    }
+    console.log('cleanTabOffsetRows: removed '+toDelete.length+' offset rows from '+tab);
+  }catch(e){console.warn('cleanTabOffsetRows failed:',e);}
 }
 
 async function updatePlanInSheet(plan){
@@ -1346,10 +1376,31 @@ async function deletePlanFromSheet(plan){
   }catch(e){console.warn('Del plan sheet:',e);}
 }
 
+async function pushTxns(list){
+  if(!accessToken||!list.length)return;
+  const inc=list.filter(t=>t.type==='income').map(t=>[t.id,t.date,t.desc,t.source,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
+  const exp=list.filter(t=>t.type==='expense').map(t=>[t.id,t.date,t.desc,t.cat,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
+  const sav=list.filter(t=>t.type==='savings').map(t=>[t.id,t.date,t.desc,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
+  try{
+    if(inc.length) await writeRowsToTab(TAB_INC,inc,'H');
+    if(exp.length) await writeRowsToTab(TAB_EXP,exp,'H');
+    if(sav.length) await writeRowsToTab(TAB_SAV,sav,'G');
+  }catch(e){console.warn('Push txns:',e);}
+}
+
+async function pushPlans(list){
+  if(!accessToken||!list.length)return;
+  const rows=list.map(p=>[p.id,p.date,p.desc,p.cat,p.amount,p.recur,p.notes||'',
+    p.done?(p.linkedTxnId?'true:'+p.linkedTxnId:'true'):'false',
+    p.createdBy||'',p.createdAt||'',p.planType||'expense']);
+  try{ await writeRowsToTab(TAB_PLN,rows,'K'); }
+  catch(e){console.warn('Push plans:',e);}
+}
+
 async function pushWithdrawals(list){
   if(!accessToken||!list.length)return;
   const rows=list.map(w=>[w.id,w.date,w.reason,w.amount,w.notes||'',w.createdBy||'',w.createdAt||'']);
-  try{await shReq('/values/'+encodeURIComponent(TAB_WD)+'!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS','POST',{values:rows});}
+  try{ await writeRowsToTab(TAB_WD,rows,'G'); }
   catch(e){console.warn('Push wd:',e);}
 }
 
