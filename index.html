@@ -1913,47 +1913,7 @@ function renderQLists(){
   if(ihc) ihc.textContent=inc.length;
 
   // ── Update expense hero card ──
-
-// Current month
-const nowMo = moStr();
-
-// Base data
-const expenses = expAll || [];
-const monthlyPlans = plans.filter(p =>
-  p.date === nowMo && (p.planType || 'expense') === 'expense'
-);
-
-// 🧾 Planned & Logged
-const plannedLoggedAmt = expenses
-  .filter(e => e.planned)
-  .reduce((sum, e) => sum + e.amount, 0);
-
-// 🎲 Unplanned & Logged
-const unplannedAmt = expenses
-  .filter(e => !e.planned)
-  .reduce((sum, e) => sum + e.amount, 0);
-
-// ⏳ Planned, Not Logged
-const plannedNotLoggedAmt = monthlyPlans
-  .filter(p => !p.done)
-  .reduce((sum, p) => sum + p.amount, 0);
-
-// 🔁 Recurring
-const recurringAmt = plans
-  .filter(p => p.recur === 'monthly')
-  .reduce((sum, p) => sum + p.amount, 0);
-
-// Update UI (safe updates)
-const setText = (id, value) => {
-  const el = document.getElementById(id);
-  if (el) el.textContent = fmt(value);
-};
-
-setText('exp-hero-logged', plannedLoggedAmt);
-setText('exp-hero-unplanned', unplannedAmt);
-setText('exp-hero-pending', plannedNotLoggedAmt);
-setText('exp-recur-total', recurringAmt);
-// Total = logged expenses + all planned expenses for this month
+  // Total = logged expenses + all planned expenses for this month
   const nowMo=moStr(); // use selected month from header, consistent with planner tab
   const expLogged=expAll.reduce((s,x)=>s+x.amount,0);
   // ALL plans for this month (done + pending) — represents total planned budget
