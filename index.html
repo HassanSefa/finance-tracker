@@ -533,16 +533,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="card"><div class="ci">🧾</div><div class="cl">Logged Expenses</div><div class="cv r" id="exp-hero-logged">K 0.00</div></div>
         <div class="card"><div class="ci">📅</div><div class="cl">Planned Expenses</div><div class="cv r" id="exp-hero-planned">K 0.00</div></div>
         <div class="card"><div class="ci">🎲</div><div class="cl">Unplanned Expenses</div><div class="cv r" id="exp-hero-unplanned">K 0.00</div></div>
-      </div>
-      <!-- Recurring expenses card -->
-      <div class="recur-card">
-        <div class="recur-card-icon">🔁</div>
-        <div class="recur-card-info">
-          <div class="recur-card-label">Total Recurring Expenses</div>
-          <div class="recur-card-value" id="exp-recur-total">K 0.00</div>
-          <div class="recur-card-sub" id="exp-recur-sub">From planner recurring items</div>
-        </div>
-      </div>
+        <div class="card"><div class="ci">🔁</div><div class="cl">Recurring Expenses</div><div class="cv r" id="exp-recur-total">K 0.00</div>      
+      </div></div>
+
+        <!-- Total recurring Expenses -->
+     <div class="cl" id="exp-recur-sub" style="margin-top:4px; color:var(--text3); font-size:11px;">From planner recurring items</div>
 
       <!-- Pending from planner banner -->
       <div class="pending-banner" id="pending-banner">
@@ -1917,66 +1912,31 @@ function renderQLists(){
   if(ihm) ihm.textContent=fmt(incMax);
   if(ihc) ihc.textContent=inc.length;
 
-  
-// ─────────────────────────────
-// EXPENSE HERO CALCULATION
-// ─────────────────────────────
+  // ── Update expense hero card ──
+  // Total = logged expenses + all planned expenses for this month
+  const nowMo=moStr(); // use selected month from header, consistent with planner tab
+  const expLogged=expAll.reduce((s,x)=>s+x.amount,0);
+  // ALL plans for this month (done + pending) — represents total planned budget
+  const allPlannedThisMo=plans.filter(p=>p.date===nowMo&&(p.planType||'expense')==='expense');
+  const pendingPlannedThisMo=allPlannedThisMo.filter(p=>!p.done);
+  const plannedAmt=allPlannedThisMo.reduce((s,p)=>s+p.amount,0);
+  // Total = logged expenses + only the PENDING planned ones (done ones already in logged)
+  const expTotal=expLogged+pendingPlannedThisMo.reduce((s,p)=>s+p.amount,0);
+  const eht=document.getElementById('exp-hero-total');
+  const ehs=document.getElementById('exp-hero-sub');
+  const ehl=document.getElementById('exp-hero-logged');
+  const ehp=document.getElementById('exp-hero-planned');
+  // Unplanned = logged expenses where planned !== true
+  const unplannedAmt=expAll.filter(x=>!x.planned).reduce((s,x)=>s+x.amount,0);
+  const plannedLoggedAmt=expAll.filter(x=>x.planned===true).reduce((s,x)=>s+x.amount,0);
+  if(eht) eht.textContent=fmt(expTotal);
+  if(ehs) ehs.textContent=fmt(expLogged)+' logged · '+fmt(plannedAmt)+' planned';
+  if(ehl) ehl.textContent=fmt(expLogged);
+  if(ehp) ehp.textContent=fmt(plannedAmt);
+  const ehu=document.getElementById('exp-hero-unplanned');
+  if(ehu) ehu.textContent=fmt(unplannedAmt);
 
-// Current month
-const nowMo = moStr();
-
-// ── 1. BASE DATA ──
-const expenses = expAll || [];
-const monthlyPlans = plans.filter(p =>
-  p.date === nowMo && (p.planType || 'expense') === 'expense'
-);
-
-// ── 2. LOGGED EXPENSES BREAKDOWN ──
-
-// 🧾 Planned & Logged
-const plannedLoggedAmt = expenses
-  .filter(e => e.planned)
-  .reduce((sum, e) => sum + e.amount, 0);
-
-// 🎲 Unplanned & Logged
-const unplannedAmt = expenses
-  .filter(e => !e.planned)
-  .reduce((sum, e) => sum + e.amount, 0);
-
-// Total logged
-const totalLogged = plannedLoggedAmt + unplannedAmt;
-
-// ── 3. PLANNED BUT NOT LOGGED ──
-
-// ⏳ Planned, Not Logged
-const plannedNotLoggedAmt = monthlyPlans
-  .filter(p => !p.done)
-  .reduce((sum, p) => sum + p.amount, 0);
-
-// ── 4. RECURRING EXPENSES ──
-
-// 🔁 Monthly recurring
-const recurringAmt = plans
-  .filter(p => p.recur === 'monthly')
-  .reduce((sum, p) => sum + p.amount, 0);
-
-// ── 5. TOTAL EXPOSURE ──
-const totalExposure = totalLogged + plannedNotLoggedAmt;
-
-// ── 6. UPDATE UI ──
-const setText = (id, value) => {
-  const el = document.getElementById(id);
-  if (el) el.textContent = fmt(value);
-};
-
-setText('exp-hero-total', totalExposure);
-setText('exp-hero-sub', `${fmt(totalLogged)} logged · ${fmt(plannedNotLoggedAmt)} pending`);
-
-setText('exp-hero-logged', plannedLoggedAmt);
-setText('exp-hero-unplanned', unplannedAmt);
-setText('exp-hero-pending', plannedNotLoggedAmt);
-setText('exp-recur-total', recurringAmt);
-// ── Recurring expenses card ──
+  // ── Recurring expenses card ──
   const recurPlans=plans.filter(p=>p.recur==='monthly');
   const recurAmt=recurPlans.reduce((s,p)=>s+p.amount,0);
   const rtEl=document.getElementById('exp-recur-total');
