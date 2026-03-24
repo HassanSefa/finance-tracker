@@ -531,7 +531,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div style="font-size:12px;opacity:.75;margin-top:6px;" id="exp-hero-sub">K 0.00 logged · K 0.00 planned</div>
         </div>
         <div class="card"><div class="ci">🧾</div><div class="cl">Logged Expenses</div><div class="cv r" id="exp-hero-logged">K 0.00</div></div>
-        <div class="card"><div class="ci">📅</div><div class="cl">Planned (This Month)</div><div class="cv r" id="exp-hero-planned">K 0.00</div></div>
+        <div class="card"><div class="ci">📅</div><div class="cl">Planned Expenses</div><div class="cv r" id="exp-hero-planned">K 0.00</div></div>
+        <div class="card"><div class="ci">🎲</div><div class="cl">Unplanned Expenses</div><div class="cv r" id="exp-hero-unplanned">K 0.00</div></div>
       </div>
       <!-- Recurring expenses card -->
       <div class="recur-card">
@@ -1130,7 +1131,7 @@ async function ensureTabs(){
   }catch(e){console.warn('Could not read sheet metadata:',e);return;}
   const tabDefs=[
     {name:TAB_INC,headers:['ID','Date','Description','Source','Amount','Notes','CreatedBy','CreatedAt']},
-    {name:TAB_EXP,headers:['ID','Date','Description','Category','Amount','Notes','CreatedBy','CreatedAt']},
+    {name:TAB_EXP,headers:['ID','Date','Description','Category','Amount','Notes','CreatedBy','CreatedAt','Planned']},
     {name:TAB_SAV,headers:['ID','Date','Description','Amount','Notes','CreatedBy','CreatedAt','SavingsType']},
     {name:TAB_WD, headers:['ID','Date','Reason','Amount','Notes','CreatedBy','CreatedAt']},
     {name:TAB_PLN,headers:['ID','Date','Description','Category','Amount','Recur','Notes','Done','CreatedBy','CreatedAt','PlanType']},
@@ -1240,7 +1241,7 @@ async function loadFromSheets(){
     const safeGet=async(range)=>{try{return await shReq('/values/'+encodeURIComponent(range));}catch(e){return {values:[]};}};
     const [iR,eR,sR,wR,pR,cR]=await Promise.all([
       safeGet(TAB_INC+'!A2:H'),
-      safeGet(TAB_EXP+'!A2:H'),
+      safeGet(TAB_EXP+'!A2:I'),
       safeGet(TAB_SAV+'!A2:H'),
       safeGet(TAB_WD+'!A2:G'),
       safeGet(TAB_PLN+'!A2:K'),
@@ -1285,7 +1286,7 @@ async function loadFromSheets(){
     // ── Parse sheet data ────────────────────────────────────────────────────
     const loaded=[];
     (iR.values||[]).filter(r=>r[0]&&r[4]).forEach(r=>loaded.push({id:Number(r[0]),type:'income',date:r[1]||'',desc:r[2]||'',source:r[3]||'Other',amount:parseFloat(r[4])||0,notes:r[5]||'',createdBy:r[6]||'',createdAt:r[7]||''}));
-    (eR.values||[]).filter(r=>r[0]&&r[4]).forEach(r=>loaded.push({id:Number(r[0]),type:'expense',date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,notes:r[5]||'',createdBy:r[6]||'',createdAt:r[7]||''}));
+    (eR.values||[]).filter(r=>r[0]&&r[4]).forEach(r=>loaded.push({id:Number(r[0]),type:'expense',date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,notes:r[5]||'',createdBy:r[6]||'',createdAt:r[7]||'',planned:r[8]==='true'}));
     (sR.values||[]).filter(r=>r[0]&&r[3]).forEach(r=>loaded.push({id:Number(r[0]),type:'savings',date:r[1]||'',desc:r[2]||'',amount:parseFloat(r[3])||0,notes:r[4]||'',createdBy:r[5]||'',createdAt:r[6]||'',savingsType:r[7]||'savings'}));
     const wLoaded=[];
     (wR.values||[]).filter(r=>r[0]&&r[3]).forEach(r=>wLoaded.push({id:Number(r[0]),date:r[1]||'',reason:r[2]||'',amount:parseFloat(r[3])||0,notes:r[4]||'',createdBy:r[5]||'',createdAt:r[6]||''}));
@@ -1444,11 +1445,11 @@ async function deletePlanFromSheet(plan){
 async function pushTxns(list){
   if(!accessToken||!list.length)return;
   const inc=list.filter(t=>t.type==='income').map(t=>[t.id,t.date,t.desc,t.source,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
-  const exp=list.filter(t=>t.type==='expense').map(t=>[t.id,t.date,t.desc,t.cat,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
+  const exp=list.filter(t=>t.type==='expense').map(t=>[t.id,t.date,t.desc,t.cat,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'',t.planned===true?'true':'false']);
   const sav=list.filter(t=>t.type==='savings').map(t=>[t.id,t.date,t.desc,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'',t.savingsType||'savings']);
   try{
     if(inc.length) await writeRowsToTab(TAB_INC,inc,'H');
-    if(exp.length) await writeRowsToTab(TAB_EXP,exp,'H');
+    if(exp.length) await writeRowsToTab(TAB_EXP,exp,'I');
     if(sav.length) await writeRowsToTab(TAB_SAV,sav,'H');
   }catch(e){console.warn('Push txns:',e);}
 }
@@ -1489,7 +1490,7 @@ async function deleteTxnFromSheet(txn){
   if(!accessToken)return;
   const tab=txn.type==='income'?TAB_INC:txn.type==='expense'?TAB_EXP:TAB_SAV;
   // Income & Expense have 8 cols (A:H), Savings has 7 cols (A:G)
-  const lastCol=txn.type==='savings'?'H':'H';
+  const lastCol=txn.type==='savings'?'H':txn.type==='expense'?'I':'H';
   try{
     const res=await shReq('/values/'+tab+'!A:A');
     const rows=res.values||[];
@@ -1597,7 +1598,7 @@ async function logExpense(){
   if(!desc)return toast('Please add a description','er');
   if(!date)return toast('Please select a month','er');
   if(!amt||amt<=0)return toast('Please enter a valid amount','er');
-  const t={id:Date.now(),type:'expense',desc,cat,date,amount:amt,notes,createdBy:currentUser(),createdAt:nowStr()};
+  const t={id:Date.now(),type:'expense',desc,cat,date,amount:amt,notes,createdBy:currentUser(),createdAt:nowStr(),planned:false};
   // If category is Savings, also log as savings type
   if(cat==='Savings'){
     const st={id:Date.now()+1,type:'savings',desc,date,amount:amt,notes,createdBy:currentUser(),createdAt:nowStr()};
@@ -1643,7 +1644,7 @@ async function logSavings(){
 async function quickLogSavingsPlan(planId){
   const p=plans.find(x=>x.id===planId);if(!p) return;
   p.linkedTxnId=Date.now();
-  const t={id:p.linkedTxnId,type:'savings',savingsType:p.planType==='investment'?'investment':'savings',desc:p.desc,date:p.date,amount:p.amount,notes:p.notes||'',createdBy:currentUser(),createdAt:nowStr(),fromPlanner:true};
+  const t={id:p.linkedTxnId,type:'savings',savingsType:p.planType==='investment'?'investment':'savings',desc:p.desc,date:p.date,amount:p.amount,notes:p.notes||'',createdBy:currentUser(),createdAt:nowStr(),planned:true,fromPlanner:true};
   txns.unshift(t);
   p.done=true;
   saveTxns(); savePlans();
@@ -1930,10 +1931,15 @@ function renderQLists(){
   const ehs=document.getElementById('exp-hero-sub');
   const ehl=document.getElementById('exp-hero-logged');
   const ehp=document.getElementById('exp-hero-planned');
+  // Unplanned = logged expenses where planned !== true
+  const unplannedAmt=expAll.filter(x=>!x.planned).reduce((s,x)=>s+x.amount,0);
+  const plannedLoggedAmt=expAll.filter(x=>x.planned===true).reduce((s,x)=>s+x.amount,0);
   if(eht) eht.textContent=fmt(expTotal);
   if(ehs) ehs.textContent=fmt(expLogged)+' logged · '+fmt(plannedAmt)+' planned';
   if(ehl) ehl.textContent=fmt(expLogged);
   if(ehp) ehp.textContent=fmt(plannedAmt);
+  const ehu=document.getElementById('exp-hero-unplanned');
+  if(ehu) ehu.textContent=fmt(unplannedAmt);
 
   // ── Recurring expenses card ──
   const recurPlans=plans.filter(p=>p.recur==='monthly');
@@ -2561,6 +2567,7 @@ async function togglePlanDone(id){
       notes:p.notes||'',
       createdBy:currentUser(),
       createdAt:nowStr(),
+      planned:true,
       fromPlanner:true
     };
     txns.unshift(t);
@@ -2764,11 +2771,12 @@ async function quickLogPlanned(planId){
     type:p.planType==='savings'?'savings':'expense',
     desc:p.desc,
     cat:p.cat,
-    date:p.date,        // Use the plan's own month, not necessarily current month
+    date:p.date,
     amount:p.amount,
     notes:p.notes||'',
     createdBy:currentUser(),
-    createdAt:nowStr()
+    createdAt:nowStr(),
+    planned:true
   };
   txns.unshift(t);
   saveTxns();
