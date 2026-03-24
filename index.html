@@ -389,6 +389,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .collapsible-body.open{max-height:9999px;opacity:1;}
 .collapsible-wrap{margin-bottom:14px;}
 
+
+/* RECURRING CARD STYLE */
+.recurring-card {
+  background: var(--purl);
+}
+
+.recurring-card .cl {
+  color: var(--purple);
+}
+
+.recurring-card .cv {
+  color: var(--purple);
+}
 </style>
 </head>
 <body>
@@ -533,14 +546,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="card"><div class="ci">🧾</div><div class="cl">Logged Expenses</div><div class="cv r" id="exp-hero-logged">K 0.00</div></div>
         <div class="card"><div class="ci">📅</div><div class="cl">Planned Expenses</div><div class="cv r" id="exp-hero-planned">K 0.00</div></div>
         <div class="card"><div class="ci">🎲</div><div class="cl">Unplanned Expenses</div><div class="cv r" id="exp-hero-unplanned">K 0.00</div></div>
-        <div class="card"><div class="ci">🔁</div><div class="cl">Recurring Expenses</div><div class="cv" id="exp-recur-total">K 0.00</div></div>
-              <!-- Recurring expenses card -->
-<!-- ✅ THIS IS THE FIXED ONE -->
-        <div class="card recurring-card"><div class="ci">🔁</div>
+
+<div class="card recurring-card">
+  <div class="ci">🔁</div>
+  <div class="cl">Total Recurring Expenses</div>
+  <div class="cv" id="exp-recur-total">K 0.00</div>
+</div>
       </div>
-
-
-
+      <!-- Recurring expenses card -->
+      </div>
+      </div>
 
       <!-- Pending from planner banner -->
       <div class="pending-banner" id="pending-banner">
