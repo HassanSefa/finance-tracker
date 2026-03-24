@@ -486,14 +486,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
       </div>
 
-      <!-- All transactions for selected period -->
-      <div class="dash-txn-sec">
-        <div class="rh">
-          <div class="st" id="d-txn-title">All Transactions</div>
-          <span id="d-txn-count" style="font-size:11px;color:var(--text3);"></span>
+      <!-- All transactions for selected period (collapsible) -->
+      <div class="collapsible-wrap">
+        <div class="collapsible-hdr" onclick="toggleCollapse('col-dash-txn',this)">
+          <div class="st"><span id="d-txn-title">All Transactions</span> <span id="d-txn-count" style="font-size:12px;font-weight:700;color:var(--text2);margin-left:6px;"></span></div>
+          <span class="chev">▼</span>
         </div>
-        <div class="dash-txn-list" id="d-txn-list">
-          <div class="dash-txn-empty">No transactions yet</div>
+        <div class="collapsible-body" id="col-dash-txn">
+          <div class="dash-txn-sec" style="border-radius:0 0 var(--r) var(--r);box-shadow:var(--sh);margin-bottom:0;">
+            <div class="dash-txn-list" id="d-txn-list">
+              <div class="dash-txn-empty">No transactions yet</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -548,7 +552,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Expenses by Category (collapsible) -->
       <div class="collapsible-wrap">
         <div class="collapsible-hdr" onclick="toggleCollapse('col-exp-cats',this)">
-          <div class="st">📂 Expenses by Category</div>
+          <div class="st">📂 Expenses by Category <span id="col-exp-cats-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;"></span></div>
           <span class="chev">▼</span>
         </div>
         <div class="collapsible-body" id="col-exp-cats">
@@ -575,7 +579,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- 2. From Planner (collapsible) -->
       <div class="collapsible-wrap" id="planned-in-exp-wrap" style="display:none;">
         <div class="collapsible-hdr" onclick="toggleCollapse('col-from-planner',this)">
-          <div class="st">📅 From Planner <span id="planned-in-exp-count" style="font-size:11px;color:var(--text3);margin-left:6px;"></span></div>
+          <div class="st">📅 From Planner <span id="planned-in-exp-count" style="font-size:11px;color:var(--text3);margin-left:6px;"></span> <span id="planned-in-exp-total" style="font-size:12px;font-weight:700;color:var(--accent);margin-left:4px;"></span></div>
           <span class="chev">▼</span>
         </div>
         <div class="collapsible-body" id="col-from-planner">
@@ -622,7 +626,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Planned Savings (collapsible) -->
       <div class="collapsible-wrap" id="planned-in-sav-wrap">
         <div class="collapsible-hdr" onclick="toggleCollapse('col-sav-planned',this)">
-          <div class="st">📅 Planned Savings <span id="planned-in-sav-count" style="font-size:11px;color:var(--text3);margin-left:6px;"></span></div>
+          <div class="st">📅 Planned Savings <span id="planned-in-sav-count" style="font-size:11px;color:var(--text3);margin-left:6px;"></span> <span id="col-sav-planned-total" style="font-size:12px;font-weight:700;color:var(--teal);margin-left:4px;"></span></div>
           <span class="chev">▼</span>
         </div>
         <div class="collapsible-body" id="col-sav-planned">
@@ -635,7 +639,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Savings History (collapsible) -->
       <div class="collapsible-wrap">
         <div class="collapsible-hdr" onclick="toggleCollapse('col-sav-history',this)">
-          <div class="st">🏦 Savings History <span id="sav-period-label" style="font-size:11px;color:var(--text3);margin-left:6px;"></span></div>
+          <div class="st">🏦 Savings History <span id="sav-period-label" style="font-size:11px;color:var(--text3);margin-left:6px;"></span> <span id="col-sav-history-total" style="font-size:12px;font-weight:700;color:var(--teal);margin-left:4px;"></span></div>
           <span class="chev">▼</span>
         </div>
         <div class="collapsible-body" id="col-sav-history">
@@ -662,7 +666,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Withdrawal History (collapsible) -->
       <div class="collapsible-wrap">
         <div class="collapsible-hdr" onclick="toggleCollapse('col-wd-history',this)">
-          <div class="st">💸 Withdrawal History</div>
+          <div class="st">💸 Withdrawal History <span id="col-wd-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;"></span></div>
           <span class="chev">▼</span>
         </div>
         <div class="collapsible-body" id="col-wd-history">
@@ -1873,6 +1877,9 @@ function renderQLists(){
   // ── Income list ──
   if(il) il.innerHTML=inc.length?inc.map(tRow).join(''):'<div class="empty" style="padding:12px 0"><p>No income this month</p></div>';
 
+  // ── Expenses by Category header total
+  const catTotalEl=document.getElementById('col-exp-cats-total');
+  if(catTotalEl) catTotalEl.textContent=expAll.length?fmt(expAll.reduce((s,x)=>s+x.amount,0)):'';
   // ── Category filter buttons ──
   const filterEl=document.getElementById('exp-cat-filter');
   if(filterEl){
@@ -1967,6 +1974,12 @@ function renderQLists(){
   if(overdueCnt) parts.push(overdueCnt+' overdue');
   if(currentCnt) parts.push(currentCnt+' this month');
   countEl.textContent=parts.join(' · ');
+  // Update From Planner collapsible header total
+  const planTotalAmt=plannedToShow.reduce((s,p)=>s+p.amount,0);
+  const ptEl=document.getElementById('planned-in-exp-total');
+  if(ptEl) ptEl.textContent=planTotalAmt>0?fmt(planTotalAmt):'';
+  const wrap=document.getElementById('planned-in-exp-wrap');
+  if(wrap) wrap.style.display='block';
 
   listEl.innerHTML=plannedToShow.map(p=>{
     const isOverdue=p.date<now;
@@ -2028,9 +2041,13 @@ function renderSavings(){
   document.getElementById('sav-balance').textContent=fmt(balance);
   document.getElementById('sav-sub').textContent='Savings '+fmt(totalSavLogged)+' · Investments '+fmt(totalInvLogged)+' · Withdrawn '+fmt(totalWd);
   document.getElementById('sav-planned').textContent=fmt(periodPlanned);
+  const pSavTotalEl=document.getElementById('col-sav-planned-total');
+  if(pSavTotalEl) pSavTotalEl.textContent=periodPlanned>0?fmt(periodPlanned):'';
   document.getElementById('sav-month').textContent=fmt(periodLogged);
   const si=document.getElementById('sav-invest');if(si)si.textContent=fmt(periodInvLogged);
   document.getElementById('sav-withdrawn').textContent=fmt(periodWd);
+  const wdTotalEl=document.getElementById('col-wd-total');
+  if(wdTotalEl) wdTotalEl.textContent=periodWd>0?'-'+fmt(periodWd):'';
   document.getElementById('sav-rate').textContent=rate+'%';
 
   // ── Period label ──
@@ -2057,6 +2074,9 @@ function renderSavings(){
 
   const rowsEl=document.getElementById('sav-history-rows');
   const footerEl=document.getElementById('sav-table-footer');
+  // Update Savings History collapsible header total
+  const histTotalEl=document.getElementById('col-sav-history-total');
+  if(histTotalEl){ const ttl=periodLogged+periodInvLogged; histTotalEl.textContent=ttl>0?fmt(ttl):''; }
   if(!rows.length){
     rowsEl.innerHTML='<div class="empty" style="padding:24px"><p>No savings or investment records for this period</p></div>';
     if(footerEl) footerEl.style.display='none';
