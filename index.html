@@ -525,35 +525,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div id="tp-expenses" class="tp">
       <!-- Expense hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
-        
-<div class="cg">
-    <div class="card">
-        <div class="ci">🧾</div>
-        <div class="cl">Logged Expenses</div>
-        <div class="cv r" id="exp-hero-logged">K 0.00</div>
-    </div>
-
-    <div class="card">
-        <div class="ci">📅</div>
-        <div class="cl">Planned Expenses</div>
-        <div class="cv r" id="exp-hero-planned">K 0.00</div>
-    </div>
-
-    <div class="card">
-        <div class="ci">🎲</div>
-        <div class="cl">Unplanned Expenses</div>
-        <div class="cv r" id="exp-hero-unplanned">K 0.00</div>
-    </div>
-
-    <div class="card">
-        <div class="ci">🔁</div>
-        <div class="cl">Total Recurring Expenses</div>
-        <div class="cv r" id="exp-recur-total">K 0.00</div>
-        <div class="cl" id="exp-recur-sub" style="margin-top:4px; color:var(--text3); font-size:11px;">
+        <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,#b83232,#d94f4f);color:#fff;">
+          <div class="cl" style="color:rgba(255,255,255,.75);">Total Expenses This Month</div>
+          <div style="font-family:'Playfair Display',serif;font-size:30px;font-weight:700;line-height:1;" id="exp-hero-total">K 0.00</div>
+          <div style="font-size:12px;opacity:.75;margin-top:6px;" id="exp-hero-sub">K 0.00 logged · K 0.00 planned</div>
+        </div>
+        <div class="card"><div class="ci">🧾</div><div class="cl">Logged Expenses</div><div class="cv r" id="exp-hero-logged">K 0.00</div></div>
+        <div class="card"><div class="ci">📅</div><div class="cl">Planned Expenses</div><div class="cv r" id="exp-hero-planned">K 0.00</div></div>
+        <div class="card"><div class="ci">🎲</div><div class="cl">Unplanned Expenses</div><div class="cv r" id="exp-hero-unplanned">K 0.00</div></div>
+        <div class="card"><div class="ci">🔁</div><div class="cl">Recurring Expenses</div>div class="cv r" id="exp-recur-total">K 0.00</div>
+<div class="cl" id="exp-recur-sub" style="margin-top:4px; color:var(--text3); font-size:11px;">
             From planner recurring items
         </div>
-    </div>
-</div>
 
       </div>
 
