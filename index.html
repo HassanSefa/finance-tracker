@@ -1131,7 +1131,7 @@ async function ensureTabs(){
   const tabDefs=[
     {name:TAB_INC,headers:['ID','Date','Description','Source','Amount','Notes','CreatedBy','CreatedAt']},
     {name:TAB_EXP,headers:['ID','Date','Description','Category','Amount','Notes','CreatedBy','CreatedAt']},
-    {name:TAB_SAV,headers:['ID','Date','Description','Amount','Notes','CreatedBy','CreatedAt']},
+    {name:TAB_SAV,headers:['ID','Date','Description','Amount','Notes','CreatedBy','CreatedAt','SavingsType']},
     {name:TAB_WD, headers:['ID','Date','Reason','Amount','Notes','CreatedBy','CreatedAt']},
     {name:TAB_PLN,headers:['ID','Date','Description','Category','Amount','Recur','Notes','Done','CreatedBy','CreatedAt','PlanType']},
     {name:TAB_CFG,headers:['Key','Value']},
@@ -1241,7 +1241,7 @@ async function loadFromSheets(){
     const [iR,eR,sR,wR,pR,cR]=await Promise.all([
       safeGet(TAB_INC+'!A2:H'),
       safeGet(TAB_EXP+'!A2:H'),
-      safeGet(TAB_SAV+'!A2:G'),
+      safeGet(TAB_SAV+'!A2:H'),
       safeGet(TAB_WD+'!A2:G'),
       safeGet(TAB_PLN+'!A2:K'),
       safeGet(TAB_CFG+'!A2:B'),
@@ -1286,7 +1286,7 @@ async function loadFromSheets(){
     const loaded=[];
     (iR.values||[]).filter(r=>r[0]&&r[4]).forEach(r=>loaded.push({id:Number(r[0]),type:'income',date:r[1]||'',desc:r[2]||'',source:r[3]||'Other',amount:parseFloat(r[4])||0,notes:r[5]||'',createdBy:r[6]||'',createdAt:r[7]||''}));
     (eR.values||[]).filter(r=>r[0]&&r[4]).forEach(r=>loaded.push({id:Number(r[0]),type:'expense',date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,notes:r[5]||'',createdBy:r[6]||'',createdAt:r[7]||''}));
-    (sR.values||[]).filter(r=>r[0]&&r[3]).forEach(r=>loaded.push({id:Number(r[0]),type:'savings',date:r[1]||'',desc:r[2]||'',amount:parseFloat(r[3])||0,notes:r[4]||'',createdBy:r[5]||'',createdAt:r[6]||''}));
+    (sR.values||[]).filter(r=>r[0]&&r[3]).forEach(r=>loaded.push({id:Number(r[0]),type:'savings',date:r[1]||'',desc:r[2]||'',amount:parseFloat(r[3])||0,notes:r[4]||'',createdBy:r[5]||'',createdAt:r[6]||'',savingsType:r[7]||'savings'}));
     const wLoaded=[];
     (wR.values||[]).filter(r=>r[0]&&r[3]).forEach(r=>wLoaded.push({id:Number(r[0]),date:r[1]||'',reason:r[2]||'',amount:parseFloat(r[3])||0,notes:r[4]||'',createdBy:r[5]||'',createdAt:r[6]||''}));
     const pLoaded=[];
@@ -1445,11 +1445,11 @@ async function pushTxns(list){
   if(!accessToken||!list.length)return;
   const inc=list.filter(t=>t.type==='income').map(t=>[t.id,t.date,t.desc,t.source,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
   const exp=list.filter(t=>t.type==='expense').map(t=>[t.id,t.date,t.desc,t.cat,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
-  const sav=list.filter(t=>t.type==='savings').map(t=>[t.id,t.date,t.desc,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'']);
+  const sav=list.filter(t=>t.type==='savings').map(t=>[t.id,t.date,t.desc,t.amount,t.notes||'',t.createdBy||'',t.createdAt||'',t.savingsType||'savings']);
   try{
     if(inc.length) await writeRowsToTab(TAB_INC,inc,'H');
     if(exp.length) await writeRowsToTab(TAB_EXP,exp,'H');
-    if(sav.length) await writeRowsToTab(TAB_SAV,sav,'G');
+    if(sav.length) await writeRowsToTab(TAB_SAV,sav,'H');
   }catch(e){console.warn('Push txns:',e);}
 }
 
@@ -1489,7 +1489,7 @@ async function deleteTxnFromSheet(txn){
   if(!accessToken)return;
   const tab=txn.type==='income'?TAB_INC:txn.type==='expense'?TAB_EXP:TAB_SAV;
   // Income & Expense have 8 cols (A:H), Savings has 7 cols (A:G)
-  const lastCol=txn.type==='savings'?'G':'H';
+  const lastCol=txn.type==='savings'?'H':'H';
   try{
     const res=await shReq('/values/'+tab+'!A:A');
     const rows=res.values||[];
@@ -1769,8 +1769,8 @@ function renderDashboard(){
 
   const inc=t.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0);
   const exp=t.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);
-  const savAll=txns.filter(x=>x.type==='savings'&&(x.date||'').startsWith(moStr()));
-  const sav=savAll.reduce((s,x)=>s+x.amount,0);
+  // Savings = all savings type txns for selected period (savings + investments combined)
+  const sav=t.filter(x=>x.type==='savings').reduce((s,x)=>s+x.amount,0);
   const wdAmt=wds.reduce((s,w)=>s+w.amount,0);
   const bal=inc-exp;
 
