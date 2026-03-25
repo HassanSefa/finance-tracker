@@ -554,7 +554,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Expenses by Category (collapsible) -->
       <div class="collapsible-wrap">
         <div class="collapsible-hdr" onclick="toggleCollapse('col-exp-cats',this)">
-          <div class="st">📂 Expenses by Category <span id="col-exp-cats-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;"></span></div>
+          <div class="st">📂 Expenses Category <span id="col-exp-cats-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;"></span></div>
           <span class="chev">▼</span>
         </div>
         <div class="collapsible-body" id="col-exp-cats">
@@ -563,16 +563,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           </div>
         </div>
       </div>
-
-      <!-- 1. This Month's Expenses (collapsible) -->
-      <div class="collapsible-wrap">
-        <div class="collapsible-hdr" onclick="toggleCollapse('col-exp-list',this)">
-          <div class="st" style="flex:1;min-width:0;">🔴 This Month's Expenses <span id="e-list-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;">K 0.00</span></div>
-          <div style="display:flex;gap:4px;margin-right:8px;" onclick="event.stopPropagation()">
+ <div style="display:flex;gap:4px;margin-right:8px;" onclick="event.stopPropagation()">
             <button id="epf-all" onclick="setExpPlanFilter('all')" style="padding:3px 8px;border-radius:20px;border:1.5px solid var(--border);font-size:10px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;">All</button>
             <button id="epf-planned" onclick="setExpPlanFilter('planned')" style="padding:3px 8px;border-radius:20px;border:1.5px solid var(--border);font-size:10px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--text2);">📅 Planned</button>
             <button id="epf-unplanned" onclick="setExpPlanFilter('unplanned')" style="padding:3px 8px;border-radius:20px;border:1.5px solid var(--border);font-size:10px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--text2);">🎲 Unplanned</button>
           </div>
+      <!-- 1. This Month's Expenses (collapsible) -->
+      <div class="collapsible-wrap">
+        <div class="collapsible-hdr" onclick="toggleCollapse('col-exp-list',this)">
+          <div class="st" style="flex:1;min-width:0;">🔴 This Month's Expenses<span id="e-list-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;">K 0.00</span></div>
+         
           <span class="chev">▼</span>
         </div>
         <div class="collapsible-body" id="col-exp-list">
