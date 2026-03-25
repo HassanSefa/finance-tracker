@@ -526,18 +526,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Expense hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,#b83232,#d94f4f);color:#fff;">
-          <div class="cl" style="color:rgba(255,255,255,.75);">Total Expenses This Month</div>
+          <div class="cl" style="color:rgba(255,255,255,.75);">Total Expenses This Month (Logged + Pending)</div>
           <div style="font-family:'Playfair Display',serif;font-size:30px;font-weight:700;line-height:1;" id="exp-hero-total">K 0.00</div>
-          <div style="font-size:12px;opacity:.75;margin-top:6px;" id="exp-hero-sub">K 0.00 logged · K 0.00 planned</div>
+          <div style="font-size:12px;opacity:.75;margin-top:6px;" id="exp-hero-sub">K 0.00 logged · K 0.00 pending</div>
         </div>
-        <div class="card"><div class="ci">🧾</div><div class="cl">Logged Expenses</div><div class="cv r" id="exp-hero-logged">K 0.00</div></div>
-        <div class="card"><div class="ci">📅</div><div class="cl">Planned Expenses</div><div class="cv r" id="exp-hero-planned">K 0.00</div></div>
-        <div class="card"><div class="ci">🎲</div><div class="cl">Unplanned Expenses</div><div class="cv r" id="exp-hero-unplanned">K 0.00</div></div>
-        <div class="card"><div class="ci">🔁</div><div class="cl">Recurring Expenses</div><div class="cv r" id="exp-recur-total">K 0.00</div>      
-      </div></div>
-
-        <!-- Total recurring Expenses -->
-     <div class="cl" id="exp-recur-sub" style="margin-top:4px; color:var(--text3); font-size:11px;">From planner recurring items</div>
+        <div class="card"><div class="ci">📅</div><div class="cl">Planned & Logged</div><div class="cv r" id="exp-hero-planned-logged">K 0.00</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">From planner, logged</div></div>
+        <div class="card"><div class="ci">🎲</div><div class="cl">Unplanned & Logged</div><div class="cv r" id="exp-hero-unplanned">K 0.00</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">Logged directly</div></div>
+        <div class="card"><div class="ci">📅</div><div class="cl">Planned & Logged</div><div class="cv r" id="exp-hero-planned-logged">K 0.00</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">From planner, logged</div></div>
+        <div class="card"><div class="ci">🎲</div><div class="cl">Unplanned & Logged</div><div class="cv r" id="exp-hero-unplanned">K 0.00</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">Added directly</div></div>
+        <div class="card"><div class="ci">⏳</div><div class="cl">Planned, Not Logged</div><div class="cv r" id="exp-hero-planned">K 0.00</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">Still pending</div></div>
+      </div>
+      <!-- Recurring expenses card -->
+      <div class="recur-card">
+        <div class="recur-card-icon">🔁</div>
+        <div class="recur-card-info">
+          <div class="recur-card-label">Total Recurring Expenses</div>
+          <div class="recur-card-value" id="exp-recur-total">K 0.00</div>
+          <div class="recur-card-sub" id="exp-recur-sub">From planner recurring items</div>
+        </div>
+      </div>
 
       <!-- Pending from planner banner -->
       <div class="pending-banner" id="pending-banner">
@@ -1106,6 +1113,14 @@ function showBanner(msg,type='ok'){
 }
 
 // ─── SHEETS API ────────────────────────────────────────────────────────────
+let _sheetIdCache = {}; // cache tab name → sheetId to avoid repeated metadata fetches
+async function getSheetId(tabName){
+  if(_sheetIdCache[tabName]) return _sheetIdCache[tabName];
+  const meta=await shReq('');
+  meta.sheets.forEach(s=>{ _sheetIdCache[s.properties.title]=s.properties.sheetId; });
+  return _sheetIdCache[tabName];
+}
+
 async function shReq(path,method='GET',body=null){
   if(!accessToken)throw new Error('Not authenticated');
   const r=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+path,{
@@ -1231,6 +1246,7 @@ async function loadFromSheets(){
   // Prevent concurrent syncs — if a sync is already running, skip
   if(_syncInProgress){ console.log('Sync already in progress, skipping'); return; }
   _syncInProgress = true;
+  _sheetIdCache = {}; // clear cache so we get fresh sheet IDs
   setSyncDot('sy');
   try{
     const safeGet=async(range)=>{try{return await shReq('/values/'+encodeURIComponent(range));}catch(e){return {values:[]};}};
@@ -1294,11 +1310,11 @@ async function loadFromSheets(){
     });
 
     // ── Merge: sheet is always authoritative.
-    // Local-only = items whose ID is not in the sheet (created offline since last sync).
-    // Sheet wins for everything else — this ensures fresh devices always get full data.
+    // Sheet version replaces local version for any matching ID.
+    // Local-only = items whose ID is NOT in the sheet (created offline since last sync).
     const shIds=new Set(loaded.map(t=>t.id));
     const localOnly=txns.filter(t=>!shIds.has(t.id));
-    txns=[...loaded,...localOnly];
+    txns=[...loaded,...localOnly]; // sheet rows first, then offline-only local rows
 
     const wShIds=new Set(wLoaded.map(w=>w.id));
     const wLocalOnly=withdrawals.filter(w=>!wShIds.has(w.id));
@@ -1306,6 +1322,8 @@ async function loadFromSheets(){
     saveTxns();saveWds();
 
     const pShIds=new Set(pLoaded.map(p=>p.id));
+    // For plans: sheet wins — drop any local version that exists in sheet
+    // This prevents edited/deleted plans from being restored by stale local cache
     const pLocalOnly=plans.filter(p=>!pShIds.has(p.id));
     plans=[...pLoaded,...pLocalOnly];
     savePlans();
@@ -1430,10 +1448,16 @@ async function updatePlanInSheet(plan){
 async function deletePlanFromSheet(plan){
   if(!accessToken)return;
   try{
+    const sheetId=await getSheetId(TAB_PLN);
+    if(sheetId===undefined)return;
     const res=await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A:A');
     const rows=res.values||[];
     const idx=rows.findIndex(r=>r[0]==String(plan.id));
-    if(idx>=0)await shReq('/values/'+encodeURIComponent(TAB_PLN)+'!A'+(idx+1)+':K'+(idx+1)+':clear','POST',{});
+    if(idx>=0){
+      await shReq(':batchUpdate','POST',{requests:[{
+        deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:idx,endIndex:idx+1}}
+      }]});
+    }
   }catch(e){console.warn('Del plan sheet:',e);}
 }
 
@@ -1484,23 +1508,33 @@ async function syncConfig(){
 async function deleteTxnFromSheet(txn){
   if(!accessToken)return;
   const tab=txn.type==='income'?TAB_INC:txn.type==='expense'?TAB_EXP:TAB_SAV;
-  // Income & Expense have 8 cols (A:H), Savings has 7 cols (A:G)
-  const lastCol=txn.type==='savings'?'H':txn.type==='expense'?'I':'H';
   try{
+    const sheetId=await getSheetId(tab);
+    if(sheetId===undefined)return;
     const res=await shReq('/values/'+tab+'!A:A');
     const rows=res.values||[];
     const idx=rows.findIndex(r=>r[0]==String(txn.id));
-    if(idx>=0)await shReq('/values/'+tab+'!A'+(idx+1)+':'+lastCol+(idx+1)+':clear','POST',{});
+    if(idx>=0){
+      await shReq(':batchUpdate','POST',{requests:[{
+        deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:idx,endIndex:idx+1}}
+      }]});
+    }
   }catch(e){console.warn('Del txn sheet:',e);}
 }
 
 async function deleteWdFromSheet(wd){
   if(!accessToken)return;
   try{
+    const sheetId=await getSheetId(TAB_WD);
+    if(sheetId===undefined)return;
     const res=await shReq('/values/'+TAB_WD+'!A:A');
     const rows=res.values||[];
     const idx=rows.findIndex(r=>r[0]==String(wd.id));
-    if(idx>=0)await shReq('/values/'+TAB_WD+'!A'+(idx+1)+':G'+(idx+1)+':clear','POST',{});
+    if(idx>=0){
+      await shReq(':batchUpdate','POST',{requests:[{
+        deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:idx,endIndex:idx+1}}
+      }]});
+    }
   }catch(e){console.warn('Del wd sheet:',e);}
 }
 
@@ -1676,12 +1710,7 @@ async function logWithdrawal(){
 async function delTxn(id){
   const txn=txns.find(t=>t.id===id);
   txns=txns.filter(t=>t.id!==id);saveTxns();
-  // If this transaction was linked from a planner item, reset that plan so it can be re-logged
-  if(txn&&txn.fromPlanner){
-    const linkedPlan=plans.find(p=>p.linkedTxnId===id);
-    if(linkedPlan){ linkedPlan.done=false; linkedPlan.linkedTxnId=null; savePlans(); }
-  }
-  render();renderHistory();renderSavings();renderPlanner();renderPendingBanner();toast('Deleted','');
+  render();renderHistory();renderSavings();toast('Deleted','');
   if(accessToken&&txn)await deleteTxnFromSheet(txn);
 }
 
@@ -1931,13 +1960,21 @@ function renderQLists(){
   const ehs=document.getElementById('exp-hero-sub');
   const ehl=document.getElementById('exp-hero-logged');
   const ehp=document.getElementById('exp-hero-planned');
-  // Unplanned = logged expenses where planned !== true
-  const unplannedAmt=expAll.filter(x=>!x.planned).reduce((s,x)=>s+x.amount,0);
+  // Planned & Logged = expenses logged from planner (planned:true)
   const plannedLoggedAmt=expAll.filter(x=>x.planned===true).reduce((s,x)=>s+x.amount,0);
+  // Unplanned & Logged = expenses logged directly (planned:false or undefined)
+  const unplannedAmt=expAll.filter(x=>!x.planned).reduce((s,x)=>s+x.amount,0);
+  // Planned Not Logged = plans for this month that are still pending (not done)
+  // plannedAmt already calculated above as pending plans total
+
   if(eht) eht.textContent=fmt(expTotal);
-  if(ehs) ehs.textContent=fmt(expLogged)+' logged · '+fmt(plannedAmt)+' planned';
-  if(ehl) ehl.textContent=fmt(expLogged);
+  if(ehs) ehs.textContent=fmt(plannedLoggedAmt)+' planned · '+fmt(unplannedAmt)+' unplanned · '+fmt(plannedAmt)+' pending';
   if(ehp) ehp.textContent=fmt(plannedAmt);
+
+  // Planned & Logged card
+  const ehpl=document.getElementById('exp-hero-planned-logged');
+  if(ehpl) ehpl.textContent=fmt(plannedLoggedAmt);
+  // Unplanned & Logged card
   const ehu=document.getElementById('exp-hero-unplanned');
   if(ehu) ehu.textContent=fmt(unplannedAmt);
 
@@ -2766,9 +2803,8 @@ async function quickLogPlanned(planId){
   if(!p) return;
 
   // Create the actual expense transaction directly — no manual step needed
-  const txnId=Date.now();
   const t={
-    id:txnId,
+    id:Date.now(),
     type:p.planType==='savings'?'savings':'expense',
     desc:p.desc,
     cat:p.cat,
@@ -2777,15 +2813,13 @@ async function quickLogPlanned(planId){
     notes:p.notes||'',
     createdBy:currentUser(),
     createdAt:nowStr(),
-    planned:true,
-    fromPlanner:true
+    planned:true
   };
   txns.unshift(t);
   saveTxns();
 
-  // Mark plan as done and store the link so unlog can remove the transaction
+  // Mark plan as done
   p.done=true;
-  p.linkedTxnId=txnId;
   savePlans();
 
   // Refresh all relevant views
