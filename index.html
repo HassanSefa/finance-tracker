@@ -1676,7 +1676,12 @@ async function logWithdrawal(){
 async function delTxn(id){
   const txn=txns.find(t=>t.id===id);
   txns=txns.filter(t=>t.id!==id);saveTxns();
-  render();renderHistory();renderSavings();toast('Deleted','');
+  // If this transaction was linked from a planner item, reset that plan so it can be re-logged
+  if(txn&&txn.fromPlanner){
+    const linkedPlan=plans.find(p=>p.linkedTxnId===id);
+    if(linkedPlan){ linkedPlan.done=false; linkedPlan.linkedTxnId=null; savePlans(); }
+  }
+  render();renderHistory();renderSavings();renderPlanner();renderPendingBanner();toast('Deleted','');
   if(accessToken&&txn)await deleteTxnFromSheet(txn);
 }
 
@@ -2761,8 +2766,9 @@ async function quickLogPlanned(planId){
   if(!p) return;
 
   // Create the actual expense transaction directly — no manual step needed
+  const txnId=Date.now();
   const t={
-    id:Date.now(),
+    id:txnId,
     type:p.planType==='savings'?'savings':'expense',
     desc:p.desc,
     cat:p.cat,
@@ -2771,13 +2777,15 @@ async function quickLogPlanned(planId){
     notes:p.notes||'',
     createdBy:currentUser(),
     createdAt:nowStr(),
-    planned:true
+    planned:true,
+    fromPlanner:true
   };
   txns.unshift(t);
   saveTxns();
 
-  // Mark plan as done
+  // Mark plan as done and store the link so unlog can remove the transaction
   p.done=true;
+  p.linkedTxnId=txnId;
   savePlans();
 
   // Refresh all relevant views
