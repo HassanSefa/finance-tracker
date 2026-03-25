@@ -1316,11 +1316,11 @@ async function loadFromSheets(){
     });
 
     // ── Merge: sheet is the single source of truth ─────────────────────────
-    // On login, we always start from what the sheet has.
-    // Local-only items (created offline since last sync) are identified by
-    // comparing against the last sync timestamp — only items newer than the
-    // last sync are treated as genuine offline additions and pushed up.
+    // Wipe local data first — sheet data will replace it completely.
+    // Only items created AFTER last sync are kept as genuine offline additions.
     const lastSyncTs = Number(localStorage.getItem('hft_last_sync_ts') || 0);
+    // Clear local arrays so stale deleted/edited items don't survive
+    txns = []; withdrawals = []; plans = [];
 
     const shIds=new Set(loaded.map(t=>t.id));
     // Only treat as offline-new if created AFTER last sync (not just absent from sheet)
@@ -1597,6 +1597,10 @@ function sw(id,btn){
   if(id==='savings')   {populateSavMoFilter();renderSavings();}
   if(id==='planner')   renderPlanner();
   if(id==='admin')     renderAdmin();
+  // Trigger background sync on every tab switch so data is always fresh from sheet
+  if(accessToken && !offlineMode && !_syncInProgress){
+    loadFromSheets().catch(e=>console.warn('Tab switch sync failed:',e));
+  }
 }
 
 function cycleMonth(){
