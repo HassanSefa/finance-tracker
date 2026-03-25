@@ -526,15 +526,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Expense hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,#b83232,#d94f4f);color:#fff;">
-          <div class="cl" style="color:rgba(255,255,255,.75);">Total Expenses This Month (Logged + Pending)</div>
+          <div class="cl" style="color:rgba(255,255,255,.75);">Total Expenses This Month</div>
           <div style="font-family:'Playfair Display',serif;font-size:30px;font-weight:700;line-height:1;" id="exp-hero-total">K 0.00</div>
           <div style="font-size:12px;opacity:.75;margin-top:6px;" id="exp-hero-sub">K 0.00 logged · K 0.00 pending</div>
         </div>
-        <div class="card"><div class="ci">📅</div><div class="cl">Planned & Logged</div><div class="cv r" id="exp-hero-planned-logged">K 0.00</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">From planner, logged</div></div>
-        <div class="card"><div class="ci">🎲</div><div class="cl">Unplanned & Logged</div><div class="cv r" id="exp-hero-unplanned">K 0.00</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">Logged directly</div></div>
-        <div class="card"><div class="ci">📅</div><div class="cl">Planned & Logged</div><div class="cv r" id="exp-hero-planned-logged">K 0.00</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">From planner, logged</div></div>
-        <div class="card"><div class="ci">🎲</div><div class="cl">Unplanned & Logged</div><div class="cv r" id="exp-hero-unplanned">K 0.00</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">Added directly</div></div>
-        <div class="card"><div class="ci">⏳</div><div class="cl">Planned, Not Logged</div><div class="cv r" id="exp-hero-planned">K 0.00</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">Still pending</div></div>
+        <div class="card"><div class="ci">🧾</div><div class="cl">Logged Expenses</div><div class="cv r" id="exp-hero-logged">K 0.00</div></div>
+        <div class="card"><div class="ci">📅</div><div class="cl">Planned (This Month)</div><div class="cv r" id="exp-hero-planned">K 0.00</div></div>
+        <div class="card"><div class="ci">📅</div><div class="cl">Planned & Logged</div><div class="cv r" id="exp-hero-planned-logged">K 0.00</div></div>
+        <div class="card"><div class="ci">🎲</div><div class="cl">Unplanned & Logged</div><div class="cv r" id="exp-hero-unplanned">K 0.00</div></div>
       </div>
       <!-- Recurring expenses card -->
       <div class="recur-card">
@@ -1950,32 +1949,27 @@ function renderQLists(){
   // Total = logged expenses + all planned expenses for this month
   const nowMo=moStr(); // use selected month from header, consistent with planner tab
   const expLogged=expAll.reduce((s,x)=>s+x.amount,0);
-  // ALL plans for this month (done + pending) — represents total planned budget
+  // ALL plans for this month (done + pending)
   const allPlannedThisMo=plans.filter(p=>p.date===nowMo&&(p.planType||'expense')==='expense');
   const pendingPlannedThisMo=allPlannedThisMo.filter(p=>!p.done);
   const plannedAmt=allPlannedThisMo.reduce((s,p)=>s+p.amount,0);
-  // Total = logged expenses + only the PENDING planned ones (done ones already in logged)
+  // Total = logged + pending planned (done planned already counted in logged)
   const expTotal=expLogged+pendingPlannedThisMo.reduce((s,p)=>s+p.amount,0);
+  // Planned & Logged = expenses that came from planner
+  const plannedLoggedAmt=expAll.filter(x=>x.planned===true).reduce((s,x)=>s+x.amount,0);
+  // Unplanned & Logged = expenses added directly
+  const unplannedAmt=expAll.filter(x=>!x.planned).reduce((s,x)=>s+x.amount,0);
   const eht=document.getElementById('exp-hero-total');
   const ehs=document.getElementById('exp-hero-sub');
   const ehl=document.getElementById('exp-hero-logged');
   const ehp=document.getElementById('exp-hero-planned');
-  // Planned & Logged = expenses logged from planner (planned:true)
-  const plannedLoggedAmt=expAll.filter(x=>x.planned===true).reduce((s,x)=>s+x.amount,0);
-  // Unplanned & Logged = expenses logged directly (planned:false or undefined)
-  const unplannedAmt=expAll.filter(x=>!x.planned).reduce((s,x)=>s+x.amount,0);
-  // Planned Not Logged = plans for this month that are still pending (not done)
-  // plannedAmt already calculated above as pending plans total
-
-  if(eht) eht.textContent=fmt(expTotal);
-  if(ehs) ehs.textContent=fmt(plannedLoggedAmt)+' planned · '+fmt(unplannedAmt)+' unplanned · '+fmt(plannedAmt)+' pending';
-  if(ehp) ehp.textContent=fmt(plannedAmt);
-
-  // Planned & Logged card
   const ehpl=document.getElementById('exp-hero-planned-logged');
-  if(ehpl) ehpl.textContent=fmt(plannedLoggedAmt);
-  // Unplanned & Logged card
   const ehu=document.getElementById('exp-hero-unplanned');
+  if(eht) eht.textContent=fmt(expTotal);
+  if(ehs) ehs.textContent=fmt(expLogged)+' logged · '+fmt(plannedAmt)+' planned';
+  if(ehl) ehl.textContent=fmt(expLogged);
+  if(ehp) ehp.textContent=fmt(plannedAmt);
+  if(ehpl) ehpl.textContent=fmt(plannedLoggedAmt);
   if(ehu) ehu.textContent=fmt(unplannedAmt);
 
   // ── Recurring expenses card ──
