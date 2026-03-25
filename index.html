@@ -1316,24 +1316,25 @@ async function loadFromSheets(){
     });
 
     // ── Merge: sheet is the single source of truth ─────────────────────────
-    // Wipe local data first — sheet data will replace it completely.
-    // Only items created AFTER last sync are kept as genuine offline additions.
+    // Capture local arrays BEFORE wiping so we can identify genuine offline entries.
+    // An offline entry = created AFTER the last sync timestamp (brand new, not yet pushed).
     const lastSyncTs = Number(localStorage.getItem('hft_last_sync_ts') || 0);
-    // Clear local arrays so stale deleted/edited items don't survive
-    txns = []; withdrawals = []; plans = [];
+    const preSyncTxns = [...txns];
+    const preSyncWds  = [...withdrawals];
+    const preSyncPlans= [...plans];
 
     const shIds=new Set(loaded.map(t=>t.id));
-    // Only treat as offline-new if created AFTER last sync (not just absent from sheet)
-    const localOnly=txns.filter(t=>!shIds.has(t.id) && t.id > lastSyncTs);
+    // Offline-new = in local, not in sheet, AND created after last sync
+    const localOnly=preSyncTxns.filter(t=>!shIds.has(t.id) && t.id > lastSyncTs);
     txns=[...loaded,...localOnly];
 
     const wShIds=new Set(wLoaded.map(w=>w.id));
-    const wLocalOnly=withdrawals.filter(w=>!wShIds.has(w.id) && w.id > lastSyncTs);
+    const wLocalOnly=preSyncWds.filter(w=>!wShIds.has(w.id) && w.id > lastSyncTs);
     withdrawals=[...wLoaded,...wLocalOnly];
     saveTxns();saveWds();
 
     const pShIds=new Set(pLoaded.map(p=>p.id));
-    const pLocalOnly=plans.filter(p=>!pShIds.has(p.id) && p.id > lastSyncTs);
+    const pLocalOnly=preSyncPlans.filter(p=>!pShIds.has(p.id) && p.id > lastSyncTs);
     plans=[...pLoaded,...pLocalOnly];
     savePlans();
 
@@ -1899,7 +1900,19 @@ function tRow(t){
   const creator=t.createdBy?`<div class="tby">👤 ${t.createdBy} · ${t.createdAt||''}</div>`:'';
   const editBtn=!isWd?`<button onclick="openEditTxn(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button>`:'';
   const delBtn=isWd?`<button onclick="delWd(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Delete">✕</button>`:`<button onclick="delTxn(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Delete">✕</button>`;
-  return`<div class="ti-row"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}</div><div class="tmeta">${label} · ${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}">${sign}${fmt(t.amount)}</div>${editBtn}${delBtn}</div>`;
+  // Colour-code expense rows: planned=teal left border, unplanned=orange left border
+  let rowStyle='';
+  let planBadge='';
+  if(t.type==='expense'){
+    if(t.planned===true){
+      rowStyle='border-left:3px solid var(--teal);padding-left:10px;';
+      planBadge=`<span style="font-size:9px;font-weight:700;background:var(--teall);color:var(--teal);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle;">PLANNED</span>`;
+    } else {
+      rowStyle='border-left:3px solid var(--accent2);padding-left:10px;';
+      planBadge=`<span style="font-size:9px;font-weight:700;background:var(--goldl);color:var(--accent);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle;">UNPLANNED</span>`;
+    }
+  }
+  return`<div class="ti-row" style="${rowStyle}"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}${planBadge}</div><div class="tmeta">${label} · ${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}">${sign}${fmt(t.amount)}</div>${editBtn}${delBtn}</div>`;
 }
 
 function setCatFilter(cat){
