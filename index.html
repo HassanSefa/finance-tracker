@@ -554,7 +554,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- Expenses by Category (collapsible) -->
       <div class="collapsible-wrap">
         <div class="collapsible-hdr" onclick="toggleCollapse('col-exp-cats',this)">
-          <div class="st">📂 Expenses Category <span id="col-exp-cats-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;"></span></div>
+          <div class="st">📂 Expenses by Category <span id="col-exp-cats-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;"></span></div>
           <span class="chev">▼</span>
         </div>
         <div class="collapsible-body" id="col-exp-cats">
@@ -567,12 +567,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- 1. This Month's Expenses (collapsible) -->
       <div class="collapsible-wrap">
         <div class="collapsible-hdr" onclick="toggleCollapse('col-exp-list',this)">
-          <div class="st" style="flex:1;min-width:0;">🔴 This Month's Expenses<span id="e-list-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;">K 0.00</span></div>
-         
+          <div class="st" style="flex:1;min-width:0;">🔴 This Month's Expenses <span id="e-list-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;">K 0.00</span></div>
           <span class="chev">▼</span>
         </div>
         <div class="collapsible-body" id="col-exp-list">
           <div style="background:var(--surface);border-radius:0 0 var(--r) var(--r);padding:12px 14px;box-shadow:var(--sh);">
+
              <div style="display:flex;gap:4px;margin-right:8px;margin-bottom:10px;" onclick="event.stopPropagation()">
             <button id="epf-all" onclick="setExpPlanFilter('all')" style="padding:3px 8px;border-radius:20px;border:1.5px solid var(--border);font-size:10px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;">All</button>
             <button id="epf-planned" onclick="setExpPlanFilter('planned')" style="padding:3px 8px;border-radius:20px;border:1.5px solid var(--border);font-size:10px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--text2);">📅 Planned</button>
@@ -955,7 +955,7 @@ const saveWds  = ()=>localStorage.setItem('hft_wds', JSON.stringify(withdrawals)
 const saveCats = ()=>localStorage.setItem('hft_cats',JSON.stringify(cats));
 const saveSrcs = ()=>localStorage.setItem('hft_srcs',JSON.stringify(srcs));
 const saveCfg  = ()=>localStorage.setItem('hft_cfg', JSON.stringify(settings));
-const fmt  = n=>settings.currency+' '+Number(n).toLocaleString('en-ZM',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt  = n=>settings.currency+' '+Number(n).toLocaleString('en-ZM',{minimumFractionDigits:0,maximumFractionDigits:0});
 const moStr= ()=>`${curYear}-${String(curMonth+1).padStart(2,'0')}`;
 const toMo = ()=>moStr();
 const moTxns=(y,m)=>txns.filter(t=>{const p=t.date||'';return p.startsWith(`${y}-${String(m+1).padStart(2,'0')}`)});
@@ -971,6 +971,20 @@ function currentUser(){
   const stored = localStorage.getItem('hft_email');
   if(stored && stored !== 'Google User') return stored;
   return offlineMode ? 'Offline' : 'Unknown';
+}
+
+// Returns just the first name from an email or full name string
+// e.g. "hassan.sefa@gmail.com" → "Hassan"  |  "Hassan Sefa" → "Hassan"
+function displayName(raw){
+  if(!raw || raw==='Offline' || raw==='Unknown') return raw||'';
+  // If it contains @ it's an email — extract part before @, then before dot
+  if(raw.includes('@')){
+    const local = raw.split('@')[0];           // e.g. "hassan.sefa" or "hassansefa"
+    const first = local.split(/[._\-]/)[0];    // take first segment
+    return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+  }
+  // Otherwise treat as display name — return first word
+  return raw.split(' ')[0];
 }
 
 // ─── BOOT ──────────────────────────────────────────────────────────────────
@@ -1892,7 +1906,7 @@ function tRowDel(t){
   const label=isWd?'Withdrawal': t.type==='income'?t.source: t.type==='savings'?'Savings': t.cat;
   const amtClass=isWd||t.type==='expense'?'expense': t.type==='savings'?'savings':'income';
   const sign=isWd||t.type==='expense'?'-':'+';
-  const creator=t.createdBy?`<div class="tby">👤 ${t.createdBy} · ${t.createdAt||''}</div>`:'';
+  const creator=t.createdBy?`<div class="tby">👤 ${displayName(t.createdBy)} · ${t.createdAt||''}</div>`:'';
   const delfn=isWd?`delWd(${t.id})`:`delTxn(${t.id})`;
   const editBtn=!isWd?`<button onclick="openEditTxn(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button>`:'';
   return`<div class="ti-row"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}</div><div class="tmeta">${label} · ${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}" style="margin-right:4px;">${sign}${fmt(t.amount)}</div>${editBtn}<button style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" onclick="${delfn}" title="Delete">✕</button></div>`;
@@ -1904,7 +1918,7 @@ function tRow(t){
   const label=isWd?'Withdrawal': t.type==='income'?t.source: t.type==='savings'?'Savings': t.cat;
   const amtClass=isWd||t.type==='expense'?'expense': t.type==='savings'?'savings':'income';
   const sign=isWd||t.type==='expense'?'-': '+';
-  const creator=t.createdBy?`<div class="tby">👤 ${t.createdBy} · ${t.createdAt||''}</div>`:'';
+  const creator=t.createdBy?`<div class="tby">👤 ${displayName(t.createdBy)} · ${t.createdAt||''}</div>`:'';
   const editBtn=!isWd?`<button onclick="openEditTxn(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button>`:'';
   const delBtn=isWd?`<button onclick="delWd(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Delete">✕</button>`:`<button onclick="delTxn(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Delete">✕</button>`;
   // Colour-code expense rows: planned=teal left border, unplanned=orange left border
@@ -1919,7 +1933,21 @@ function tRow(t){
       planBadge=`<span style="font-size:9px;font-weight:700;background:var(--goldl);color:var(--accent);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle;">UNPLANNED</span>`;
     }
   }
-  return`<div class="ti-row" style="${rowStyle}"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}${planBadge}</div><div class="tmeta">${label} · ${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}">${sign}${fmt(t.amount)}</div>${editBtn}${delBtn}</div>`;
+  // Category pill — coloured background using the category's own color
+  let catPill='';
+  if(t.type==='expense'){
+    const c=catOf(t.cat);
+    catPill=`<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;background:${c.color}22;color:${c.color};border:1px solid ${c.color}44;border-radius:20px;padding:1px 7px;margin-right:4px;">${c.icon} ${t.cat}</span>`;
+  } else if(t.type==='income'){
+    const s=srcOf(t.source);
+    catPill=`<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;background:var(--gl);color:var(--green);border:1px solid var(--green)44;border-radius:20px;padding:1px 7px;margin-right:4px;">${s.icon||'💰'} ${t.source}</span>`;
+  } else if(t.type==='savings'){
+    const sType=t.savingsType==='investment'?'Investment':'Savings';
+    const sCol=t.savingsType==='investment'?'var(--purple)':'var(--teal)';
+    const sBg=t.savingsType==='investment'?'var(--purl)':'var(--teall)';
+    catPill=`<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;background:${sBg};color:${sCol};border:1px solid ${sCol}44;border-radius:20px;padding:1px 7px;margin-right:4px;">${t.savingsType==='investment'?'📈':'🏦'} ${sType}</span>`;
+  }
+  return`<div class="ti-row" style="${rowStyle}"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}${planBadge}</div><div class="tmeta">${catPill}${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}">${sign}${fmt(t.amount)}</div>${editBtn}${delBtn}</div>`;
 }
 
 function setExpPlanFilter(val){
@@ -2199,7 +2227,7 @@ function renderSavings(){
   // ── Withdrawal list ──
   const wl=document.getElementById('w-list');
   const sortedWd=[...withdrawals].sort((a,b)=>b.id-a.id);
-  wl.innerHTML=sortedWd.length?sortedWd.map(w=>`<div class="wd-row"><div class="wd-icon">💸</div><div class="wd-info"><div class="wd-reason">${w.reason}</div><div class="wd-meta">${displayDate(w.date)}${w.notes?' · '+w.notes:''}</div><div class="tby">👤 ${w.createdBy||''} · ${w.createdAt||''}</div></div><div class="wd-amt">-${fmt(w.amount)}</div><button onclick="openEditWd(${w.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button><button class="wd-del" onclick="delWd(${w.id})">✕</button></div>`).join(''):'<div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div>';
+  wl.innerHTML=sortedWd.length?sortedWd.map(w=>`<div class="wd-row"><div class="wd-icon">💸</div><div class="wd-info"><div class="wd-reason">${w.reason}</div><div class="wd-meta">${displayDate(w.date)}${w.notes?' · '+w.notes:''}</div><div class="tby">👤 ${displayName(w.createdBy)||''} · ${w.createdAt||''}</div></div><div class="wd-amt">-${fmt(w.amount)}</div><button onclick="openEditWd(${w.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button><button class="wd-del" onclick="delWd(${w.id})">✕</button></div>`).join(''):'<div class="empty" style="padding:12px 0"><div class="eico">💰</div><p>No withdrawals recorded</p></div>';
 }
 
 function renderPlannedInSavings(filterMo){
@@ -2306,7 +2334,7 @@ function renderHistory(){
     const sign=isWd||t.type==='expense'?'-':'+';
     const delfn=isWd?`delWd(${t.id})`:`delTxn(${t.id})`;
     const editH=!isWd?`<button onclick="openEditTxn(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:6px;" title="Edit">✏️</button>`:'';
-    return`<div class="hrow"><div class="ticon ${t.type==='income'?'income':t.type==='savings'?'savings':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||''}</div><div class="tmeta">${label}${t.notes?' · '+t.notes:''}</div><div class="hcreator">👤 ${t.createdBy||'—'} · ${t.createdAt||''}</div></div><div class="tamt ${amtCls}">${sign}${fmt(t.amount)}</div>${editH}<button class="hdel" onclick="${delfn}">✕</button></div>`;
+    return`<div class="hrow"><div class="ticon ${t.type==='income'?'income':t.type==='savings'?'savings':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||''}</div><div class="tmeta">${label}${t.notes?' · '+t.notes:''}</div><div class="hcreator">👤 ${displayName(t.createdBy)||'—'} · ${t.createdAt||''}</div></div><div class="tamt ${amtCls}">${sign}${fmt(t.amount)}</div>${editH}<button class="hdel" onclick="${delfn}">✕</button></div>`;
   }).join('')}`).join('');
 }
 
