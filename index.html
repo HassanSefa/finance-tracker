@@ -567,7 +567,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <!-- 1. This Month's Expenses (collapsible) -->
       <div class="collapsible-wrap">
         <div class="collapsible-hdr" onclick="toggleCollapse('col-exp-list',this)">
-          <div class="st">🔴 This Month's Expenses <span id="e-list-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;">K 0.00</span></div>
+          <div class="st" style="flex:1;min-width:0;">🔴 This Month's Expenses <span id="e-list-total" style="font-size:12px;font-weight:700;color:var(--red);margin-left:6px;">K 0.00</span></div>
+          <div style="display:flex;gap:4px;margin-right:8px;" onclick="event.stopPropagation()">
+            <button id="epf-all" onclick="setExpPlanFilter('all')" style="padding:3px 8px;border-radius:20px;border:1.5px solid var(--border);font-size:10px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;">All</button>
+            <button id="epf-planned" onclick="setExpPlanFilter('planned')" style="padding:3px 8px;border-radius:20px;border:1.5px solid var(--border);font-size:10px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--text2);">📅 Planned</button>
+            <button id="epf-unplanned" onclick="setExpPlanFilter('unplanned')" style="padding:3px 8px;border-radius:20px;border:1.5px solid var(--border);font-size:10px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--text2);">🎲 Unplanned</button>
+          </div>
           <span class="chev">▼</span>
         </div>
         <div class="collapsible-body" id="col-exp-list">
@@ -929,7 +934,8 @@ const MOF=['January','February','March','April','May','June','July','August','Se
 
 // ─── STATE ─────────────────────────────────────────────────────────────────
 let plans       = JSON.parse(localStorage.getItem('hft_plans') || '[]');
-let expCatFilter= 'all'; // active expense category filter
+let expCatFilter   = 'all'; // active expense category filter
+let expPlanFilter  = 'all'; // 'all' | 'planned' | 'unplanned'
 let txns        = JSON.parse(localStorage.getItem('hft_txns')  || '[]');
 let withdrawals = JSON.parse(localStorage.getItem('hft_wds')   || '[]');
 let cats        = JSON.parse(localStorage.getItem('hft_cats')  || JSON.stringify(DEF_CATS));
@@ -1915,6 +1921,18 @@ function tRow(t){
   return`<div class="ti-row" style="${rowStyle}"><div class="ticon ${t.type==='savings'?'savings':t.type==='income'?'income':'expense'}">${icon}</div><div class="tinfo"><div class="tname">${t.desc||t.reason||''}${planBadge}</div><div class="tmeta">${label} · ${displayDate(t.date)}</div>${creator}</div><div class="tamt ${amtClass}">${sign}${fmt(t.amount)}</div>${editBtn}${delBtn}</div>`;
 }
 
+function setExpPlanFilter(val){
+  expPlanFilter=val;
+  // Update button styles
+  ['all','planned','unplanned'].forEach(v=>{
+    const btn=document.getElementById('epf-'+v);
+    if(!btn)return;
+    btn.style.background = v===val ? (v==='planned'?'var(--teal)':v==='unplanned'?'var(--accent2)':'var(--accent)') : 'var(--surface)';
+    btn.style.color = v===val ? '#fff' : 'var(--text2)';
+  });
+  renderQLists();
+}
+
 function setCatFilter(cat){
   expCatFilter=cat;
   // Update button states
@@ -1944,14 +1962,17 @@ function renderQLists(){
       usedCats.map(c=>{const ci=catOf(c);return`<button class="exp-cat-btn ${expCatFilter===c?'active':''}" data-cat="${c}" onclick="setCatFilter('${c.replace(/'/g,"\'")}')">${ci.icon} ${c}</button>`;}).join('');
   }
 
-  // ── Filter expenses by selected category ──
-  const exp=expCatFilter==='all'?expAll:expAll.filter(x=>x.cat===expCatFilter);
-  if(el) el.innerHTML=exp.length?exp.map(tRow).join(''):'<div class="empty" style="padding:12px 0"><p>No expenses'+(expCatFilter!=='all'?' in this category':'')+' this month</p></div>';
+  // ── Filter expenses by category then by planned/unplanned ──
+  let exp=expCatFilter==='all'?expAll:expAll.filter(x=>x.cat===expCatFilter);
+  if(expPlanFilter==='planned')   exp=exp.filter(x=>x.planned===true);
+  if(expPlanFilter==='unplanned') exp=exp.filter(x=>!x.planned);
+  const isFiltered=expCatFilter!=='all'||expPlanFilter!=='all';
+  if(el) el.innerHTML=exp.length?exp.map(tRow).join(''):`<div class="empty" style="padding:12px 0"><p>No ${expPlanFilter!=='all'?expPlanFilter+' ':' '}expenses${expCatFilter!=='all'?' in this category':''} this month</p></div>`;
 
   // ── List total label ──
   const listTotal=exp.reduce((s,x)=>s+x.amount,0);
   const ltEl=document.getElementById('e-list-total');
-  if(ltEl) ltEl.textContent=fmt(listTotal)+(expCatFilter!=='all'?' (filtered)':'');
+  if(ltEl) ltEl.textContent=fmt(listTotal)+(isFiltered?' (filtered)':'');
 
   // ── Expenses by Category bars (now on Expenses tab) ──
   const cT={};expAll.forEach(x=>{cT[x.cat]=(cT[x.cat]||0)+x.amount;});
@@ -2824,9 +2845,11 @@ async function quickLogPlanned(planId){
   if(!p) return;
 
   // Create the actual expense transaction directly — no manual step needed
+  const txnId = Date.now();
   const t={
-    id:Date.now(),
+    id:txnId,
     type:p.planType==='savings'?'savings':'expense',
+    savingsType:p.planType==='investment'?'investment':(p.planType==='savings'?'savings':undefined),
     desc:p.desc,
     cat:p.cat,
     date:p.date,
@@ -2834,13 +2857,15 @@ async function quickLogPlanned(planId){
     notes:p.notes||'',
     createdBy:currentUser(),
     createdAt:nowStr(),
-    planned:true
+    planned:true,
+    fromPlanner:true
   };
   txns.unshift(t);
   saveTxns();
 
-  // Mark plan as done
+  // Mark plan as done and store the link so unmark can remove the expense
   p.done=true;
+  p.linkedTxnId=txnId;
   savePlans();
 
   // Refresh all relevant views
