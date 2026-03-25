@@ -1090,6 +1090,13 @@ function toggleAuth(){
 function doSignOut(){
   if(accessToken)try{google.accounts.oauth2.revoke(accessToken);}catch(e){}
   accessToken=null;userEmail=null;offlineMode=false;
+  // Clear all local data so stale deleted/edited records don't survive sign-out
+  txns=[];withdrawals=[];plans=[];
+  localStorage.removeItem('hft_txns');
+  localStorage.removeItem('hft_wds');
+  localStorage.removeItem('hft_plans');
+  localStorage.removeItem('hft_last_sync');
+  localStorage.removeItem('hft_last_sync_ts');
   localStorage.removeItem('hft_email');
   toast('Signed out','');
   setTimeout(()=>{lockAdmin();document.getElementById('auth-screen').style.display='flex';document.getElementById('main-app').style.display='none';},600);
@@ -1308,22 +1315,25 @@ async function loadFromSheets(){
       pLoaded.push({id:Number(r[0]),date:r[1]||'',desc:r[2]||'',cat:r[3]||'Other',amount:parseFloat(r[4])||0,recur:r[5]||'none',notes:r[6]||'',done:isDone,linkedTxnId,createdBy:r[8]||'',createdAt:r[9]||'',planType:r[10]||'expense'});
     });
 
-    // ── Merge: sheet is always authoritative.
-    // Sheet version replaces local version for any matching ID.
-    // Local-only = items whose ID is NOT in the sheet (created offline since last sync).
+    // ── Merge: sheet is the single source of truth ─────────────────────────
+    // On login, we always start from what the sheet has.
+    // Local-only items (created offline since last sync) are identified by
+    // comparing against the last sync timestamp — only items newer than the
+    // last sync are treated as genuine offline additions and pushed up.
+    const lastSyncTs = Number(localStorage.getItem('hft_last_sync_ts') || 0);
+
     const shIds=new Set(loaded.map(t=>t.id));
-    const localOnly=txns.filter(t=>!shIds.has(t.id));
-    txns=[...loaded,...localOnly]; // sheet rows first, then offline-only local rows
+    // Only treat as offline-new if created AFTER last sync (not just absent from sheet)
+    const localOnly=txns.filter(t=>!shIds.has(t.id) && t.id > lastSyncTs);
+    txns=[...loaded,...localOnly];
 
     const wShIds=new Set(wLoaded.map(w=>w.id));
-    const wLocalOnly=withdrawals.filter(w=>!wShIds.has(w.id));
+    const wLocalOnly=withdrawals.filter(w=>!wShIds.has(w.id) && w.id > lastSyncTs);
     withdrawals=[...wLoaded,...wLocalOnly];
     saveTxns();saveWds();
 
     const pShIds=new Set(pLoaded.map(p=>p.id));
-    // For plans: sheet wins — drop any local version that exists in sheet
-    // This prevents edited/deleted plans from being restored by stale local cache
-    const pLocalOnly=plans.filter(p=>!pShIds.has(p.id));
+    const pLocalOnly=plans.filter(p=>!pShIds.has(p.id) && p.id > lastSyncTs);
     plans=[...pLoaded,...pLocalOnly];
     savePlans();
 
