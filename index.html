@@ -504,6 +504,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- INCOME -->
     <div id="tp-income" class="tp">
+      <!-- Period filter -->
+      <div class="dash-filter">
+        <label>📅 Month</label>
+        <select class="fs" id="income-mo-filter" onchange="renderQLists()">
+          <option value="current">Current Month</option>
+        </select>
+        <button class="dash-filter-reset" onclick="resetTabFilter('income')">All time</button>
+      </div>
       <!-- Income hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,var(--green),#2d9e6b);color:#fff;">
@@ -523,6 +531,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- EXPENSES -->
     <div id="tp-expenses" class="tp">
+      <!-- Period filter -->
+      <div class="dash-filter">
+        <label>📅 Month</label>
+        <select class="fs" id="expenses-mo-filter" onchange="renderQLists()">
+          <option value="current">Current Month</option>
+        </select>
+        <button class="dash-filter-reset" onclick="resetTabFilter('expenses')">All time</button>
+      </div>
       <!-- Expense hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,#b83232,#d94f4f);color:#fff;">
@@ -688,6 +704,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- PLANNER -->
     <div id="tp-planner" class="tp">
+      <!-- Period filter -->
+      <div class="dash-filter">
+        <label>📅 Month</label>
+        <select class="fs" id="planner-mo-filter" onchange="renderPlanner()">
+          <option value="current">Current Month</option>
+        </select>
+        <button class="dash-filter-reset" onclick="resetTabFilter('planner')">All time</button>
+      </div>
       <!-- Summary cards -->
       <div class="plan-summary">
         <div class="plan-card"><div class="cl">This Month</div><div class="cv teal" id="pl-current-count">0</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">planned</div></div>
@@ -715,6 +739,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- HISTORY -->
     <div id="tp-history" class="tp">
+      <!-- Period filter -->
+      <div class="dash-filter">
+        <label>📅 Month</label>
+        <select class="fs" id="history-mo-filter" onchange="renderHistory()">
+          <option value="current">Current Month</option>
+        </select>
+        <button class="dash-filter-reset" onclick="resetTabFilter('history')">All time</button>
+      </div>
       <div class="frow2">
         <select class="fs" id="h-type" onchange="renderHistory()">
           <option value="all">All Types</option>
@@ -1034,7 +1066,7 @@ function initApp(){
   document.getElementById('w-date').value=toMo();
   document.getElementById('pl-date').value=toMo();
   const svd=document.getElementById('sv-date');if(svd)svd.value=toMo();
-  rebuildDropdowns(); applySettings(); render(); renderPlanner(); renderPendingBanner(); populateDashFilter(); populateSavMoFilter();
+  rebuildDropdowns(); applySettings(); render(); renderPlanner(); renderPendingBanner(); populateDashFilter(); populateSavMoFilter(); populateTabFilter('income'); populateTabFilter('expenses'); populateTabFilter('planner'); populateTabFilter('history');
   setSyncDot(accessToken?'on':'off');
 }
 
@@ -1381,7 +1413,7 @@ async function loadFromSheets(){
     // If called from loading screen, reveal the app now that data is ready
     const wasLoading=document.getElementById('loading-screen').style.display!=='none';
     if(wasLoading) showMain();
-    rebuildDropdowns(); render(); renderHistory(); populateSavMoFilter(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter(); populateDashFilter();
+    rebuildDropdowns(); render(); renderHistory(); populateSavMoFilter(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter(); populateDashFilter(); populateTabFilter('income'); populateTabFilter('expenses'); populateTabFilter('planner'); populateTabFilter('history');
     if(!wasLoading) showBanner('Synced with Google Sheets ☁️');
   }catch(e){
     setSyncDot('er');
@@ -1781,6 +1813,41 @@ function applySettings(){
 let dashFilterMode = 'month'; // 'month' | 'all'
 let dashFilterMonth = null;   // 'YYYY-MM' or null (= current month)
 
+// ── SHARED TAB PERIOD FILTER ────────────────────────────────────────────────
+// Populates a tab's month filter dropdown with all available months from data
+function populateTabFilter(tabId){
+  const sel=document.getElementById(tabId+'-mo-filter');
+  if(!sel)return;
+  const saved=sel.value;
+  const mos=new Set();
+  txns.forEach(t=>{if(t.date)mos.add(t.date.substring(0,7));});
+  withdrawals.forEach(w=>{if(w.date)mos.add(w.date.substring(0,7));});
+  plans.forEach(p=>{if(p.date)mos.add(p.date.substring(0,7));});
+  const sorted=[...mos].sort().reverse();
+  sel.innerHTML='<option value="current">Current Month</option>'+
+    sorted.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${MOF[parseInt(mo)-1]} ${y}</option>`;}).join('');
+  if(saved&&saved!=='current'){
+    for(let i=0;i<sel.options.length;i++){
+      if(sel.options[i].value===saved){sel.selectedIndex=i;break;}
+    }
+  }
+}
+
+// Get the selected month for a tab — returns 'YYYY-MM' or null for current month
+function getTabFilterMo(tabId){
+  const sel=document.getElementById(tabId+'-mo-filter');
+  if(!sel||sel.value==='current')return moStr();
+  return sel.value;
+}
+
+function resetTabFilter(tabId){
+  const sel=document.getElementById(tabId+'-mo-filter');
+  if(sel)sel.value='current';
+  if(tabId==='income'||tabId==='expenses') renderQLists();
+  else if(tabId==='planner') renderPlanner();
+  else if(tabId==='history') renderHistory();
+}
+
 function populateDashFilter(){
   const sel = document.getElementById('d-mo-filter');
   if(!sel) return;
@@ -1972,10 +2039,19 @@ function setCatFilter(cat){
 }
 
 function renderQLists(){
-  const t=moTxns(curYear,curMonth);
+  populateTabFilter('income');
+  populateTabFilter('expenses');
+  // Use tab-specific filter if set, otherwise current app month
+  const incMo=getTabFilterMo('income');
+  const expMo=getTabFilterMo('expenses');
+  const [incY,incM]=incMo.split('-').map(Number);
+  const [expY,expM]=expMo.split('-').map(Number);
+  const incTxns=txns.filter(x=>x.type==='income'&&(x.date||'').startsWith(incMo));
+  const expTxns=txns.filter(x=>x.type==='expense'&&(x.date||'').startsWith(expMo));
+  const t=moTxns(curYear,curMonth); // kept for compatibility
   const il=document.getElementById('i-list'),el=document.getElementById('e-list');
-  const inc=t.filter(x=>x.type==='income');
-  const expAll=t.filter(x=>x.type==='expense');
+  const inc=incTxns;
+  const expAll=expTxns;
 
   // ── Income list ──
   if(il) il.innerHTML=inc.length?inc.map(tRow).join(''):'<div class="empty" style="padding:12px 0"><p>No income this month</p></div>';
@@ -2300,6 +2376,16 @@ function populateUserFilter(){
 }
 
 function renderHistory(){
+  populateTabFilter('history');
+  // Sync tab period filter with the history month dropdown
+  const histMo=getTabFilterMo('history');
+  const hMonthSel=document.getElementById('h-month');
+  if(hMonthSel&&histMo!==moStr()){
+    // Set the h-month dropdown to match the tab filter
+    for(let i=0;i<hMonthSel.options.length;i++){
+      if(hMonthSel.options[i].value===histMo){hMonthSel.selectedIndex=i;break;}
+    }
+  }
   const tf=document.getElementById('h-type').value;
   const mf=document.getElementById('h-month').value;
   const uf=document.getElementById('h-user').value;
@@ -2784,7 +2870,9 @@ function planStatus(p){
 }
 
 function renderPlanner(){
+  populateTabFilter('planner');
   const filter=document.getElementById('pl-filter')?document.getElementById('pl-filter').value:'all';
+  const selectedMo=getTabFilterMo('planner');
   const now=toMo();
 
   // ── Handle recurring plans: auto-generate current month copies if not present
@@ -2799,10 +2887,10 @@ function renderPlanner(){
     }
   });
 
-  // Summary counts
-  const currentPlans=plans.filter(p=>p.date===moStr()&&!p.done);
+  // Summary counts — use selected month filter
+  const currentPlans=plans.filter(p=>p.date===selectedMo&&!p.done);
   const overdueCount=plans.filter(p=>planStatus(p)==='overdue').length;
-  const currentTotal=plans.filter(p=>p.date===moStr()&&(p.planType||'expense')==='expense').reduce((s,p)=>s+p.amount,0); // all plans this month (done + pending)
+  const currentTotal=plans.filter(p=>p.date===selectedMo&&(p.planType||'expense')==='expense').reduce((s,p)=>s+p.amount,0); (done + pending)
   const el=id=>document.getElementById(id);
   if(el('pl-current-count')) el('pl-current-count').textContent=currentPlans.length;
   if(el('pl-overdue-count')) el('pl-overdue-count').textContent=overdueCount;
@@ -2810,7 +2898,7 @@ function renderPlanner(){
 
   // Filter plans
   let filtered=[...plans];
-  if(filter==='current') filtered=filtered.filter(p=>p.date===now&&!p.done);
+  if(filter==='current') filtered=filtered.filter(p=>p.date===selectedMo&&!p.done);
   else if(filter==='overdue') filtered=filtered.filter(p=>planStatus(p)==='overdue');
   else if(filter==='future')  filtered=filtered.filter(p=>planStatus(p)==='future');
   else if(filter==='done')    filtered=filtered.filter(p=>p.done);
