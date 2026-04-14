@@ -504,6 +504,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- INCOME -->
     <div id="tp-income" class="tp">
+      <!-- Month filter -->
+      <div class="dash-filter">
+        <label>📅 Month</label>
+        <select class="fs" id="inc-mo-filter" onchange="renderQLists()">
+          <option value="current">Current Month</option>
+        </select>
+        <button class="dash-filter-reset" onclick="resetIncFilter()">All time</button>
+      </div>
       <!-- Income hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,var(--green),#2d9e6b);color:#fff;">
@@ -1817,6 +1825,12 @@ function resetDashFilter(){
   renderDashboard();
 }
 
+function resetIncFilter(){
+  const sel=document.getElementById('inc-mo-filter');
+  if(sel) sel.value='current';
+  renderQLists();
+}
+
 function resetExpFilter(){
   const sel=document.getElementById('exp-mo-filter');
   if(sel) sel.value='current';
@@ -2003,10 +2017,20 @@ function renderQLists(){
     expSel.innerHTML='<option value="current">Current Month</option>'+sorted.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${MOF[parseInt(mo)-1]} ${y}</option>`;}).join('');
     if(saved&&saved!=='current') expSel.value=saved;
   }
+  // Populate income filter
+  const incSel=document.getElementById('inc-mo-filter');
+  if(incSel){
+    const moset=new Set();
+    txns.forEach(t=>{if(t.date)moset.add(t.date.substring(0,7));});
+    const isaved=incSel.value;
+    incSel.innerHTML='<option value="current">Current Month</option>'+[...moset].sort().reverse().map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${MOF[parseInt(mo)-1]} ${y}</option>`;}).join('');
+    if(isaved&&isaved!=='current') incSel.value=isaved;
+  }
+  const incMo=(incSel&&incSel.value!=='current')?incSel.value:moStr();
   const expMo=(expSel&&expSel.value!=='current')?expSel.value:moStr();
   const t=moTxns(curYear,curMonth);
   const il=document.getElementById('i-list'),el=document.getElementById('e-list');
-  const inc=t.filter(x=>x.type==='income');
+  const inc=txns.filter(x=>x.type==='income'&&(x.date||'').startsWith(incMo));
   const expAll=txns.filter(x=>x.type==='expense'&&(x.date||'').startsWith(expMo));
 
   // ── Income list ──
