@@ -504,6 +504,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- INCOME -->
     <div id="tp-income" class="tp">
+      <div class="dash-filter">
+        <label>📅 Month</label>
+        <select class="fs" id="income-mo-filter" onchange="renderQLists()">
+          <option value="current">Current Month</option>
+        </select>
+        <button class="dash-filter-reset" onclick="resetTabFilter('income-mo-filter',renderQLists)">All time</button>
+      </div>
       <!-- Income hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,var(--green),#2d9e6b);color:#fff;">
@@ -523,6 +530,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- EXPENSES -->
     <div id="tp-expenses" class="tp">
+      <div class="dash-filter">
+        <label>📅 Month</label>
+        <select class="fs" id="expenses-mo-filter" onchange="renderQLists()">
+          <option value="current">Current Month</option>
+        </select>
+        <button class="dash-filter-reset" onclick="resetExpFilter()-filter',renderQLists)">All time</button>
+      </div>
       <!-- Expense hero card -->
       <div class="cg" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="card" style="grid-column:1/-1;background:linear-gradient(135deg,#b83232,#d94f4f);color:#fff;">
@@ -604,11 +618,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <!-- SAVINGS -->
     <div id="tp-savings" class="tp">
       <!-- Month filter -->
-      <div class="sav-mo-filter">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;">📅 Month</label>
+      <div class="dash-filter">
+        <label>📅 Month</label>
         <select class="fs" id="sav-mo-filter" onchange="renderSavings()">
           <option value="current">Current Month</option>
         </select>
+        <button class="dash-filter-reset" onclick="resetSavFilter()">All time</button>
       </div>
 
       <!-- Hero card -->
@@ -688,6 +703,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- PLANNER -->
     <div id="tp-planner" class="tp">
+      <div class="dash-filter">
+        <label>📅 Month</label>
+        <select class="fs" id="planner-mo-filter" onchange="renderPlanner()">
+          <option value="current">Current Month</option>
+        </select>
+        <button class="dash-filter-reset" onclick="resetTabFilter('planner-mo-filter',renderPlanner)">All time</button>
+      </div>
       <!-- Summary cards -->
       <div class="plan-summary">
         <div class="plan-card"><div class="cl">This Month</div><div class="cv teal" id="pl-current-count">0</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">planned</div></div>
@@ -715,6 +737,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <!-- HISTORY -->
     <div id="tp-history" class="tp">
+      <div class="dash-filter">
+        <label>📅 Month</label>
+        <select class="fs" id="history-mo-filter" onchange="renderHistory()">
+          <option value="current">Current Month</option>
+        </select>
+        <button class="dash-filter-reset" onclick="resetTabFilter('history-mo-filter',renderHistory)">All time</button>
+      </div>
       <div class="frow2">
         <select class="fs" id="h-type" onchange="renderHistory()">
           <option value="all">All Types</option>
@@ -1034,7 +1063,7 @@ function initApp(){
   document.getElementById('w-date').value=toMo();
   document.getElementById('pl-date').value=toMo();
   const svd=document.getElementById('sv-date');if(svd)svd.value=toMo();
-  rebuildDropdowns(); applySettings(); render(); renderPlanner(); renderPendingBanner(); populateDashFilter(); populateSavMoFilter();
+  rebuildDropdowns(); applySettings(); render(); renderPlanner(); renderPendingBanner(); populateDashFilter(); populateSavMoFilter(); populateTabFilter('income-mo-filter'); populateTabFilter('expenses-mo-filter'); populateTabFilter('planner-mo-filter'); populateTabFilter('history-mo-filter');
   setSyncDot(accessToken?'on':'off');
 }
 
@@ -1381,7 +1410,7 @@ async function loadFromSheets(){
     // If called from loading screen, reveal the app now that data is ready
     const wasLoading=document.getElementById('loading-screen').style.display!=='none';
     if(wasLoading) showMain();
-    rebuildDropdowns(); render(); renderHistory(); populateSavMoFilter(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter(); populateDashFilter();
+    rebuildDropdowns(); render(); renderHistory(); populateSavMoFilter(); renderSavings(); renderPlanner(); populateMoFilter(); populateUserFilter(); populateDashFilter(); populateTabFilter('income-mo-filter'); populateTabFilter('expenses-mo-filter'); populateTabFilter('planner-mo-filter'); populateTabFilter('history-mo-filter');
     if(!wasLoading) showBanner('Synced with Google Sheets ☁️');
   }catch(e){
     setSyncDot('er');
@@ -1781,6 +1810,58 @@ function applySettings(){
 let dashFilterMode = 'month'; // 'month' | 'all'
 let dashFilterMonth = null;   // 'YYYY-MM' or null (= current month)
 
+// ── TAB PERIOD FILTERS — exact same pattern as dashboard ────────────────────
+
+// Generic populate — same logic as populateDashFilter
+function populateTabFilter(selId){
+  const sel=document.getElementById(selId);
+  if(!sel)return;
+  const saved=sel.value;
+  const mos=new Set();
+  txns.forEach(t=>{if(t.date)mos.add(t.date.substring(0,7));});
+  withdrawals.forEach(w=>{if(w.date)mos.add(w.date.substring(0,7));});
+  plans.forEach(p=>{if(p.date)mos.add(p.date.substring(0,7));});
+  const sorted=[...mos].sort().reverse();
+  sel.innerHTML='<option value="current">Current Month</option>'+
+    sorted.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${MOF[parseInt(mo)-1]} ${y}</option>`;}).join('');
+  if(saved&&saved!=='current'){
+    for(let i=0;i<sel.options.length;i++){
+      if(sel.options[i].value===saved){sel.selectedIndex=i;break;}
+    }
+  }
+}
+
+// Generic get — same logic as getDashTxns, returns {txns, wds, plans, label, month}
+function getTabData(selId){
+  const sel=document.getElementById(selId);
+  const val=sel?sel.value:'current';
+  if(val==='current'){
+    const label=MOF[curMonth]+' '+curYear;
+    const mo=moStr();
+    return {
+      txns:txns.filter(t=>(t.date||'').startsWith(mo)),
+      wds:withdrawals.filter(w=>(w.date||'').startsWith(mo)),
+      plans:plans.filter(p=>(p.date||'').startsWith(mo)),
+      label, month:mo
+    };
+  }
+  const [fy,fm]=val.split('-').map(Number);
+  const label=MOF[fm-1]+' '+fy;
+  return {
+    txns:txns.filter(t=>(t.date||'').startsWith(val)),
+    wds:withdrawals.filter(w=>(w.date||'').startsWith(val)),
+    plans:plans.filter(p=>(p.date||'').startsWith(val)),
+    label, month:val
+  };
+}
+
+// Generic reset — same as resetDashFilter
+function resetTabFilter(selId, renderFn){
+  const sel=document.getElementById(selId);
+  if(sel) sel.value='current';
+  renderFn();
+}
+
 function populateDashFilter(){
   const sel = document.getElementById('d-mo-filter');
   if(!sel) return;
@@ -1806,6 +1887,18 @@ function resetDashFilter(){
   const sel=document.getElementById('d-mo-filter');
   if(sel) sel.value='current'; // visual reset
   renderDashboard();
+}
+
+function resetSavFilter(){
+  const sel=document.getElementById('sav-mo-filter');
+  if(sel) sel.value='current';
+  renderSavings();
+}
+
+function resetExpFilter(){
+  const sel=document.getElementById('expenses-mo-filter');
+  if(sel) sel.value='current';
+  renderQLists();
 }
 
 function getDashTxns(){
@@ -1972,10 +2065,14 @@ function setCatFilter(cat){
 }
 
 function renderQLists(){
-  const t=moTxns(curYear,curMonth);
+  populateTabFilter('income-mo-filter');
+  populateTabFilter('expenses-mo-filter');
+  const incData=getTabData('income-mo-filter');
+  const expData=getTabData('expenses-mo-filter');
+  const t=moTxns(curYear,curMonth); // kept for nowMo/planner calcs below
   const il=document.getElementById('i-list'),el=document.getElementById('e-list');
-  const inc=t.filter(x=>x.type==='income');
-  const expAll=t.filter(x=>x.type==='expense');
+  const inc=incData.txns.filter(x=>x.type==='income');
+  const expAll=expData.txns.filter(x=>x.type==='expense');
 
   // ── Income list ──
   if(il) il.innerHTML=inc.length?inc.map(tRow).join(''):'<div class="empty" style="padding:12px 0"><p>No income this month</p></div>';
@@ -2300,6 +2397,13 @@ function populateUserFilter(){
 }
 
 function renderHistory(){
+  populateTabFilter('history-mo-filter');
+  const histData=getTabData('history-mo-filter');
+  // Sync the history month dropdown with the tab period filter
+  if(histData.month!==moStr()){
+    const hm=document.getElementById('h-month');
+    if(hm){for(let i=0;i<hm.options.length;i++){if(hm.options[i].value===histData.month){hm.selectedIndex=i;break;}}}
+  }
   const tf=document.getElementById('h-type').value;
   const mf=document.getElementById('h-month').value;
   const uf=document.getElementById('h-user').value;
@@ -2784,6 +2888,9 @@ function planStatus(p){
 }
 
 function renderPlanner(){
+  populateTabFilter('planner-mo-filter');
+  const planData=getTabData('planner-mo-filter');
+  const selectedMo=planData.month;
   const filter=document.getElementById('pl-filter')?document.getElementById('pl-filter').value:'all';
   const now=toMo();
 
@@ -2800,9 +2907,9 @@ function renderPlanner(){
   });
 
   // Summary counts
-  const currentPlans=plans.filter(p=>p.date===moStr()&&!p.done);
+  const currentPlans=plans.filter(p=>p.date===selectedMo&&!p.done);
   const overdueCount=plans.filter(p=>planStatus(p)==='overdue').length;
-  const currentTotal=plans.filter(p=>p.date===moStr()&&(p.planType||'expense')==='expense').reduce((s,p)=>s+p.amount,0); // all plans this month (done + pending)
+  const currentTotal=plans.filter(p=>p.date===selectedMo&&(p.planType||'expense')==='expense').reduce((s,p)=>s+p.amount,0); // all plans this month (done + pending)
   const el=id=>document.getElementById(id);
   if(el('pl-current-count')) el('pl-current-count').textContent=currentPlans.length;
   if(el('pl-overdue-count')) el('pl-overdue-count').textContent=overdueCount;
@@ -2810,7 +2917,7 @@ function renderPlanner(){
 
   // Filter plans
   let filtered=[...plans];
-  if(filter==='current') filtered=filtered.filter(p=>p.date===now&&!p.done);
+  if(filter==='current') filtered=filtered.filter(p=>p.date===selectedMo&&!p.done);
   else if(filter==='overdue') filtered=filtered.filter(p=>planStatus(p)==='overdue');
   else if(filter==='future')  filtered=filtered.filter(p=>planStatus(p)==='future');
   else if(filter==='done')    filtered=filtered.filter(p=>p.done);
